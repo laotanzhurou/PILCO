@@ -75,7 +75,7 @@ with tf.Session() as sess:
     # Initial random rollouts to generate a dataset
     X,Y = rollout(env, None, timesteps=T, random=True, SUBS=SUBS, render=False)
     for i in range(1,J):
-        X_, Y_ = rollout(env, None, timesteps=T, random=True, SUBS=SUBS, verbose=True)
+        X_, Y_ = rollout(env, None, timesteps=T, random=True, SUBS=SUBS, verbose=True, render=False)
         X = np.vstack((X, X_))
         Y = np.vstack((Y, Y_))
 

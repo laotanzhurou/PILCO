@@ -54,7 +54,11 @@ class PILCO(gpflow.models.Model):
         '''
         Optimize GP models
         '''
+
+        start = time.time()
         self.mgpr.optimize(restarts=restarts)
+        end = time.time()
+        print("time taken for optimisaiton: " + str((end - start)) + " seconds")
         # Print the resulting model parameters
         # ToDo: only do this if verbosity is large enough
         lengthscales = {}; variances = {}; noises = {};
