@@ -6,6 +6,7 @@ from pilco.rewards import ExponentialReward, LinearReward, CombinedRewards
 import tensorflow as tf
 from tensorflow import logging
 from utils import rollout, policy
+
 np.random.seed(0)
 
 # Uses a wrapper for the Swimmer
@@ -72,7 +73,7 @@ with tf.Session() as sess:
     R = CombinedRewards(state_dim, [R2, R3, R4, R5, R6], coefs=[1.0, -1.0, -1.0, -1.0, -1.0])
 
     # Initial random rollouts to generate a dataset
-    X,Y = rollout(env, None, timesteps=T, random=True, SUBS=SUBS)
+    X,Y = rollout(env, None, timesteps=T, random=True, SUBS=SUBS, render=False)
     for i in range(1,J):
         X_, Y_ = rollout(env, None, timesteps=T, random=True, SUBS=SUBS, verbose=True)
         X = np.vstack((X, X_))
@@ -90,7 +91,7 @@ with tf.Session() as sess:
     for rollouts in range(N):
         print("**** ITERATION no", rollouts, " ****")
         pilco.optimize_models(maxiter=maxiter)
-        pilco.optimize_policy(maxiter=maxiter, restarts=2)
+        # pilco.optimize_policy(maxiter=maxiter, restarts=2)
 
         X_new, Y_new = rollout(env, pilco, timesteps=T_sim, verbose=True, SUBS=SUBS)
 
