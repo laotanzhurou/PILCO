@@ -6,6 +6,7 @@ from pilco.controllers import RbfController, LinearController
 from pilco.rewards import ExponentialReward, LinearReward, CombinedRewards
 import tensorflow as tf
 from .carla_env import CarlaEnv
+from .carla_client import CarlaClient
 from .env import SDAEnv
 from .pilco_gp import PILCOGaussianProcess as pilco_gp
 
@@ -43,8 +44,14 @@ with tf.Session() as session:
 	rollout_horizon = 100
 	iterations = 10
 
+	# carla connection
+	carla_host = "localhost"
+	carla_port = 5555
+
+
 	# setup
-	env = CarlaEnv(action_dimension, state_dimension, carla_episode_time)
+	carla_client = CarlaClient(carla_host, carla_port)
+	env = CarlaEnv(carla_client, action_dimension, state_dimension, carla_episode_time)
 
 	# collecting data from random rolling out
 	X = []

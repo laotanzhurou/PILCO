@@ -1,56 +1,45 @@
 from .env import SDAEnv
+from .carla_client import CarlaClient
 
 
 class CarlaEnv(SDAEnv):
 
-	def __init__(self, action_dimension, state_dimension, episode_horizon):
+	def __init__(self, carla_client:CarlaClient, action_dimension, state_dimension, episode_horizon):
 		super(action_dimension, state_dimension)
 		self.time_horizon = episode_horizon
-		# TODO
+		self.carla_client = carla_client
+
+		# init carla connection
+		self.carla_client.connect()
+
 		return
-
-	def step(self, action):
-		# convert action to Carla command and execute
-		self.execute_action(action)
-
-		# get next state
-		ob, r, is_finished = self.next_episode()
-		new_state = self.observation_to_state(ob)
-
-		# get reward and is_finished
-		return new_state, r, is_finished
 
 	def reset(self):
-		# TODO: get an initial state from Carla and convert to env state
-		self.pause_world()
-		return
+		# TODO: to pass init_params
+		ob, hit_object, hit_pedestrian, is_finished = self.carla_client.reset_carla(init_params=())
+		return ob, hit_object, hit_pedestrian, is_finished
+
+
+	def step(self, action):
+		# send next action to Carla and get next observation
+		ob, hit_object, hit_pedestrian, is_finished = self.execute_action(action)
+
+		# get reward and is_finished
+		new_state = self.observation_to_state(ob)
+		r = self.reward(ob, hit_object, hit_pedestrian, is_finished)
+		return new_state, r, is_finished
+
+	def execute_action(self, action):
+		ob, hit_object, hit_pedestrian, is_finished = self.carla_client.next_episode(action)
+		return ob, hit_object, hit_pedestrian, is_finished
+
+
+	def reward(self, observation, hit_object, hit_pedestrian, is_finished):
+		# TODO: determine reward based on observations
+		return None
+
 
 	def observation_to_state(self, observations):
 		# TODO
 		return
 
-	def execute_action(self, action):
-		# TODO
-		return
-
-	def next_episode(self, time_horizon):
-		self.pause_world()
-		# TODO: called after command executed, sample the next episode from Carla
-		ob = None
-
-		# obtain reward and is_finished from observation
-		r = self.reward(ob)
-		is_finished = self.is_finished(ob)
-		return ob, r, is_finished
-
-	def pause_world(self):
-		# TODO
-		return
-
-	def reward(self, observations):
-		# TODO: determine reward based on observations
-		return None
-
-	def is_finished(self, observation):
-		# TODO:
-		return False
