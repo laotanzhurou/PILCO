@@ -113,7 +113,7 @@ STATE = "STATE"
 
 def get_next_action_from_model(socket):
     print("receiving next action from SDA...")
-    message = socket.recv_pyobj()
+    message = socket.recv_json()
     print("message received: " + str(message))
 
     return message["type"], message["data"]
@@ -121,20 +121,26 @@ def get_next_action_from_model(socket):
 
 def apply_action(action, world):
     cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle = action
+    # obtain old weather
+    w = world.get_weather()
+    # apply changes
     new_weather = carla.WeatherParameters(
-        cloudyness=cloudyness,
-        precipitation=precipitation,
-        precipitation_deposits=precipitation_deposits,
-        wind_intensity=wind_intensity,
-        sun_azimuth_angle=sun_azimuth_angle,
-        sun_altitude_angle=sun_altitude_angle)
+        cloudyness=max(0, min(100, w.cloudyness + cloudyness)),
+        precipitation=max(0, min(100, w.precipitation + precipitation)),
+        precipitation_deposits=max(0, min(100, w.precipitation_deposits + precipitation_deposits)),
+        wind_intensity=max(0, min(100, w.wind_intensity + wind_intensity)),
+        sun_azimuth_angle=max(0, min(360, w.sun_azimuth_angle + sun_azimuth_angle)),
+        sun_altitude_angle=max(-90, min(90, w.sun_altitude_angle + sun_altitude_angle))
+        )
     world.set_weather(new_weather)
 
 
 def update_env(socket, world, vehicle, ped):
+    print("sending the next state to SDA...")
     state = state_from_world(world, vehicle, ped)
     message = {"type": STATE, "data": state}
-    socket.send_pyobj(message)
+    socket.send_json(message)
+    print("state sent")
 
 
 def state_from_world(world, vehicle, ped):
@@ -165,8 +171,10 @@ def state_from_world(world, vehicle, ped):
 
 
 def connect_mq(context, port=5555):
+    print("binding MQ connection...")
     socket = context.socket(zmq.REP)
     socket.bind("tcp://*:%d" % port)
+    print("MQ connection established...")
     return socket
 
 
@@ -293,7 +301,7 @@ def main():
         # Listen for a RESTART message to start
         begin = False
         while not begin:
-            action_type, action = get_next_action_from_model()
+            action_type, action = get_next_action_from_model(mq)
             if action_type == RESTART:
                 print("received first RESTART, initialising simulation...")
                 begin = True
@@ -303,12 +311,14 @@ def main():
 
         # Initialise environment
         agent, vehicle, camera_rgb, ped = init_env(world, actor_list)
+        print("simulation env initialised, actors created: %d" % len(actor_list))
 
         # Flag for the first tick
         first_tick = True
 
         # Create a synchronous mode context.
-        snapshot, image_rgb = None
+        snapshot = None
+        image_rgb = None
         with CarlaSyncMode(world, camera_rgb, fps=20) as sync_mode:
             while True:
                 if should_quit():
