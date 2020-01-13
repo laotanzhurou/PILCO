@@ -91,12 +91,13 @@ with tf.Session() as sess:
     for rollouts in range(N):
         print("**** ITERATION no", rollouts, " ****")
         pilco.optimize_models(maxiter=maxiter)
-        # pilco.optimize_policy(maxiter=maxiter, restarts=2)
+        pilco.optimize_policy(maxiter=maxiter, restarts=2)
 
         X_new, Y_new = rollout(env, pilco, timesteps=T_sim, verbose=True, SUBS=SUBS)
 
         # Update dataset
-        X = np.vstack((X, X_new[:T,:])); Y = np.vstack((Y, Y_new[:T,:]))
+        X = np.vstack((X, X_new[:T,:]))
+        Y = np.vstack((Y, Y_new[:T,:]))
         pilco.mgpr.set_XY(X, Y)
 
     # Saving a video of a run

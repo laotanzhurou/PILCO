@@ -13,7 +13,7 @@ class PILCOGaussianProcess:
 			model.likelihood.variance = 0.001
 			model.likelihood.variance.trainable = False
 
-	def optimise(self, restarts=1, verbose=False):
+	def optimise(self, restarts=1, verbose=True):
 		self.mgpr.optimize(restarts=restarts)
 		if verbose:
 			lengthscales = {}
@@ -36,3 +36,7 @@ class PILCOGaussianProcess:
 
 	def set_XY(self, X, Y):
 		self.mgpr.set_XY(X, Y)
+
+	def sample(self):
+		# TODO:
+		return None

@@ -1,5 +1,5 @@
-from .env import SDAEnv
-from .carla_client import CarlaClient
+from environment import SDAEnv
+from carla_client import CarlaClient
 
 
 class CarlaEnv(SDAEnv):
