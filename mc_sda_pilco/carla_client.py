@@ -1,22 +1,6 @@
 import zmq
 from enum import Enum
 
-# context = zmq.Context()
-#
-# #  Socket to talk to server
-# print("Connect to server...")
-# socket = context.socket(zmq.REQ)
-# socket.connect("tcp://localhost:5555")
-#
-# #  Do 10 requests, waiting each time for a response
-# for request in range(10):
-# 	print("Sending request %s" % request)
-# 	socket.send_string("Hello " + str(request))
-#
-# 	#  Get the reply.
-# 	message = socket.recv()
-# 	print("Received reply %s [ %s ]" % (request, message))
-
 
 class CarlaClient:
 
