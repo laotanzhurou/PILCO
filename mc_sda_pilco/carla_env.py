@@ -16,30 +16,25 @@ class CarlaEnv(SDAEnv):
 
 	def reset(self):
 		# TODO: to pass init_params
-		ob, hit_object, hit_pedestrian, is_finished = self.carla_client.reset_carla(init_params=())
-		return ob, hit_object, hit_pedestrian, is_finished
+		state = self.carla_client.reset_carla(init_params=())
+		return state
 
 
 	def step(self, action):
 		# send next action to Carla and get next observation
-		ob, hit_object, hit_pedestrian, is_finished = self.execute_action(action)
+		new_state = self.execute_action(action)
 
 		# get reward and is_finished
-		new_state = self.observation_to_state(ob)
-		r = self.reward(ob, hit_object, hit_pedestrian, is_finished)
-		return new_state, r, is_finished
+		# TODO:
+		# r = self.reward(ob, hit_object, hit_pedestrian, is_finished)
+		return new_state
 
 	def execute_action(self, action):
-		ob, hit_object, hit_pedestrian, is_finished = self.carla_client.next_episode(action)
-		return ob, hit_object, hit_pedestrian, is_finished
+		new_state = self.carla_client.next_episode(action)
+		return new_state
 
 
-	def reward(self, observation, hit_object, hit_pedestrian, is_finished):
+	def reward(self, state):
 		# TODO: determine reward based on observations
 		return None
-
-
-	def observation_to_state(self, observations):
-		# TODO
-		return
 

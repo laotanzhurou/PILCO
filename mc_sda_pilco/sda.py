@@ -4,6 +4,7 @@ import json
 import time
 import sys
 import argparse
+from random import randrange
 
 from carla_client import CarlaClient
 from carla_env import CarlaEnv
@@ -13,27 +14,39 @@ from pilco_gp import PILCOGaussianProcess as pilco_gp
 
 def rollout(env: SDAEnv, horizon, verbose=False):
 	# reset environment
-	x = env.reset()
+	state = env.reset()
 
 	# obtain history from rollouts
-	X = []
-	Y = []
+	state_actions = []
+	diffs = []
 	for t in range(horizon):
-		u = sample_action(env)
-		x_new, _, done, _ = env.step(u)
+		new_action = sample_action(env)
+
+		# TODO：　
+		new_state = env.step(new_action)
+
+		state_actions.append(np.hstack((state, new_action)))
+		diffs.append(new_state - state)
+
 		if verbose:
-			print("Action: ", u)
-			print("State : ", x_new)
-		X.append(np.hstack((x, u)))
-		Y.append(x_new - x)
-		x = x_new
-		if done:
-			break
-	return np.stack(X), np.stack(Y)
+			print("Action: ", new_action)
+			print("State : ", new_state)
+
+		# TODO: determine reward and termination from state
+		# if done:
+		# 	break
+
+	return np.stack(state_actions), np.stack(diffs)
 
 
 def sample_action(env: SDAEnv):
-	return env.action_space.sample()
+	cloudyness = randrange(-5, 5)
+	precipitation = randrange(-5, 5)
+	precipitation_deposits = randrange(-5, 5)
+	wind_intensity = randrange(-5, 5)
+	sun_azimuth_angle = randrange(-4, 4)
+	sun_altitude_angle = randrange(-15, 15)
+	return cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle
 
 
 def train():
@@ -45,6 +58,7 @@ def train():
 		carla_episode_time = 1000
 		rollout_horizon = 100
 		iterations = 10
+		T = 20
 
 		# carla connection
 		carla_host = "localhost"
@@ -52,22 +66,31 @@ def train():
 
 		# setup
 		carla_client = CarlaClient(carla_host, carla_port)
+		carla_client.connect()
 		env = CarlaEnv(carla_client, action_dimension, state_dimension, carla_episode_time)
 
-		# collecting data from random rolling out
-		X = []
-		Y = []
-		for _ in range(iterations):
-			x, y = rollout(env, rollout_horizon, verbose=True)
-			X.append(x)
-			Y.append(y)
-		X = np.array(X)
-		Y = np.array(Y)
-
-		# training transition model
-		pilco = pilco_gp(X, Y)
+		# train model from random rolling out
+		print("Initiate batch...")
+		state_actions, diffs = rollout(env, rollout_horizon, verbose=True)
+		pilco = pilco_gp(state_actions, diffs)
 		pilco.init()
 		pilco.optimise(restarts=1)
+
+		for _ in range(iterations):
+			print("Batch {} training start...".format(_ + 1))
+
+			new_state_actions, new_diffs = rollout(env, rollout_horizon, verbose=True)
+
+			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
+			diffs = np.vstack((diffs, new_diffs[:T, :]))
+
+			pilco.set_XY(state_actions, diffs)
+			pilco.optimise(restarts=1)
+
+		# optimise policy
+		# TODO:
+
+		print("exiting sda...")
 
 
 def train_offline(args, file_path="data"):
@@ -104,28 +127,10 @@ def train_offline(args, file_path="data"):
 		count += 1
 		print("time taken for batch: {} seconds".format(time.time() - start))
 
-	# state_actions, diffs = next_batch(state_file, action_file)
-	# while len(state_file) > 0:
-	# 	# fetch all batches
-	# 	new_state_actions, new_diffs = next_batch(state_file, action_file)
-	# 	# update data
-	# 	state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
-	# 	diffs = np.vstack((diffs, new_diffs[:T, :]))
-	#
-	# print("number of episodes: {}".format(len(state_actions)))
-	# print("start optimisating...")
-	#
-	# start = time.time()
-	# pilco = pilco_gp(state_actions, diffs)
-	# pilco.init()
-	# pilco.optimise(restarts=1)
-
-	print("time taken for optimising: {} seconds".format(time.time() - start))
-
 	# Sample from model
 	# TODO:
-	if pilco is not None:
-		pilco.sample()
+	# if pilco is not None:
+	# 	pilco.sample()
 
 	print("Exiting...")
 

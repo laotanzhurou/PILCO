@@ -1,5 +1,22 @@
 import zmq
 from enum import Enum
+import json
+import numpy as np
+
+
+def parse_state(state_json):
+	data = state_json['data']
+	state = np.hstack(([], data['vehicle']))
+	state = np.hstack((state, data['peds']))
+	state = np.hstack((state, data['weather']))
+	return state
+
+
+def parse_action(raw_action):
+	action_json = json.loads(raw_action)
+	data = action_json['data']
+	action = np.hstack(([], data))
+	return action
 
 
 class CarlaClient:
@@ -17,23 +34,25 @@ class CarlaClient:
 
 	def reset_carla(self, init_params=()):
 		# TODO: to define init_params types
-		message = {"type": CarlaMessage.RESTART, "data": init_params}
+		message = {"type": "RESTART", "data": ""}
 		# send
-		self.socket.send_pyobj(message)
+		self.socket.socket.send_json(message)
 		# wait for reply
-		response = self.socket.recv_pyobj()
-		ob, hit_object, hit_pedestrian, is_finished = response["data"]
-		return ob, hit_object, hit_pedestrian, is_finished
+		response = self.socket.recv_json()
+
+		state = parse_state(response["data"])
+		return state
 
 	def next_episode(self, action):
 		message = {"type": CarlaMessage.NEXT_STATE, "data": action}
 		# send
-		self.socket.send_pyobj(message)
+		self.socket.send_json(message)
 		# wait for reply
-		response = self.socket.recv_pyobj()
+		response = self.socket.recv_json()
 
-		ob, hit_object, hit_pedestrian, is_finished = response["data"]
-		return ob, hit_object, hit_pedestrian, is_finished
+		# parse
+		state = parse_state(response["data"])
+		return state
 
 
 class CarlaMessage(Enum):
@@ -42,5 +61,3 @@ class CarlaMessage(Enum):
 	NEXT_STATE = 2
 	# response
 	STATE = 3
-
-
