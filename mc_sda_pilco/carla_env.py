@@ -2,10 +2,9 @@ from environment import SDAEnv
 from carla_client import CarlaClient
 
 
-class CarlaEnv(SDAEnv):
+class CarlaEnv:
 
 	def __init__(self, carla_client:CarlaClient, action_dimension, state_dimension, episode_horizon):
-		super(action_dimension, state_dimension)
 		self.time_horizon = episode_horizon
 		self.carla_client = carla_client
 
