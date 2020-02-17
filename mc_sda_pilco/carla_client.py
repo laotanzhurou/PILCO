@@ -4,8 +4,7 @@ import json
 import numpy as np
 
 
-def parse_state(state_json):
-	data = state_json['data']
+def parse_state(data):
 	state = np.hstack(([], data['vehicle']))
 	state = np.hstack((state, data['peds']))
 	state = np.hstack((state, data['weather']))
@@ -36,7 +35,7 @@ class CarlaClient:
 		# TODO: to define init_params types
 		message = {"type": "RESTART", "data": ""}
 		# send
-		self.socket.socket.send_json(message)
+		self.socket.send_json(message)
 		# wait for reply
 		response = self.socket.recv_json()
 
@@ -44,7 +43,7 @@ class CarlaClient:
 		return state
 
 	def next_episode(self, action):
-		message = {"type": CarlaMessage.NEXT_STATE, "data": action}
+		message = {"type": CarlaMessage.NEXT_STATE.name, "data": action}
 		# send
 		self.socket.send_json(message)
 		# wait for reply

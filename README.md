@@ -4,6 +4,7 @@ python                             3.7.1 <br/>
 numpy                              1.15.4 <br/>
 gpflow                             1.5.1 <br/>
 tensorflow                         1.13.1 <br/>
+pyzmq                              17.1.2 <br/>
 gym                                0.15.4 <br/>
 mujoco-py (optional)                          2.0.2.9 <br/>
 

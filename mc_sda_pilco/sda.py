@@ -49,14 +49,14 @@ def sample_action(env: SDAEnv):
 	return cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle
 
 
-def train():
+def train(verbose=False):
 	with tf.Session() as session:
 		# hyper parameters
 		action_dimension = 5
 		n_pedestrian = 1
 		state_dimension = n_pedestrian * 2 + 2 + 1 + action_dimension
 		carla_episode_time = 1000
-		rollout_horizon = 100
+		rollout_horizon = 150
 		iterations = 10
 		T = 20
 
@@ -71,7 +71,7 @@ def train():
 
 		# train model from random rolling out
 		print("Initiate batch...")
-		state_actions, diffs = rollout(env, rollout_horizon, verbose=True)
+		state_actions, diffs = rollout(env, rollout_horizon, verbose)
 		pilco = pilco_gp(state_actions, diffs)
 		pilco.init()
 		pilco.optimise(restarts=1)
@@ -79,7 +79,7 @@ def train():
 		for _ in range(iterations):
 			print("Batch {} training start...".format(_ + 1))
 
-			new_state_actions, new_diffs = rollout(env, rollout_horizon, verbose=True)
+			new_state_actions, new_diffs = rollout(env, rollout_horizon, verbose)
 
 			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
 			diffs = np.vstack((diffs, new_diffs[:T, :]))
@@ -209,7 +209,7 @@ def main(args):
 		train_offline(args)
 	else:
 		print("training online...")
-		train()
+		train(args.verbose)
 
 
 # Scripts
@@ -219,6 +219,7 @@ if __name__ == '__main__':
 		parser = argparse.ArgumentParser()
 		parser.add_argument("--offline", "-o", help="train model in offline mode")
 		parser.add_argument("--files", "-f", help="path of data files")
+		parser.add_argument("--verbose", "-v", help="path of data files")
 		args = parser.parse_args()
 		main(args)
 
