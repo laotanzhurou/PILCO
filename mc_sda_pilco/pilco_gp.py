@@ -1,7 +1,7 @@
 import pandas as pd
 from pilco import models
 import numpy as np
-
+import time
 class PILCOGaussianProcess:
 
 	def __init__(self, X, Y):
@@ -37,6 +37,8 @@ class PILCOGaussianProcess:
 	def set_XY(self, X, Y):
 		self.mgpr.set_XY(X, Y)
 
-	def sample(self):
-		# TODO:
-		return None
+	def sample(self, x):
+		start = time.time()
+		y = list(map(lambda m: m.predict_f_samples(x, 1).flat[0], self.mgpr.models))
+		print("Time taken for sampling: " + str(time.time() - start) + " seconds")
+		return np.stack(y)

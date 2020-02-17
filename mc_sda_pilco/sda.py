@@ -103,12 +103,16 @@ def train_offline(args, file_path="data"):
 	# initialisation
 	pilco = None
 	init = True
+	target_batches = 1 # keep this value less than actual number of batches available for testing sample
 	count = 1
 	T = 20
 
 	# fetch the next batch
 	state_actions, diffs = next_batch(state_file, action_file)
-	while state_actions is not None and diffs is not None:
+	if state_actions is None or diffs is None:
+		raise Exception("State data file is empty")
+
+	while True:
 		start = time.time()
 		print("### Training Batch {} ####".format(count))
 		if init:
@@ -116,11 +120,11 @@ def train_offline(args, file_path="data"):
 			pilco.init()
 			init = False
 		else:
+			if count >= target_batches:
+				break
 			new_state_actions, new_diffs = next_batch(state_file, action_file)
-
 			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
 			diffs = np.vstack((diffs, new_diffs[:T, :]))
-
 			pilco.set_XY(state_actions, diffs)
 
 		pilco.optimise(restarts=1)
@@ -129,8 +133,11 @@ def train_offline(args, file_path="data"):
 
 	# Sample from model
 	# TODO:
-	# if pilco is not None:
-	# 	pilco.sample()
+	if pilco is not None:
+		new_state_actions, new_diffs = next_batch(state_file, action_file)
+		if new_state_actions is not None:
+			predicted_diffs = pilco.sample(np.stack([new_state_actions[0]]))
+			print("Diffs predicted: " + str(predicted_diffs))
 
 	print("Exiting...")
 
@@ -143,7 +150,10 @@ def next_batch(state_file, action_file):
 	state_actions = []
 	diffs = []
 	state = None
-	if len(state_file) > 0 and len(action_file) > 0 and heading in state_file[0] and heading in action_file[0]:
+	if len(state_file) == 0 or len(action_file) == 0:
+		return None, None
+
+	if heading in state_file[0] and heading in action_file[0]:
 		state_file.pop(0)
 		action_file.pop(0)
 		state = parse_state(state_file.pop(0))
@@ -170,17 +180,24 @@ def parse_state(raw_state):
 	state_json = json.loads(raw_state)
 	data = state_json['data']
 
-	state = np.hstack(([], data['vehicle']))
-	state = np.hstack((state, data['peds']))
-	state = np.hstack((state, data['weather']))
+
+	v = data['vehicle']
+	state = np.hstack(([], [v[0]/180, v[1]/180, v[2]/180, v[3]/100, v[4]/100, v[5]/100]))
+
+	p = data['peds']
+	state = np.hstack((state, [p[0]/180, p[1]/180, p[2]/180, p[3]/100, p[4]/100, p[5]/100]))
+
+	w = data['weather']
+	state = np.hstack((state, [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/90]))
 
 	return state
 
 
 def parse_action(raw_action):
 	action_json = json.loads(raw_action)
-	data = action_json['data']
-	action = np.hstack(([], data))
+	a = action_json['data']
+
+	action = np.hstack(([], [a[0]/5, a[1]/5, a[2]/5, a[3]/5, a[4]/4, a[5]/15]))
 	return action
 
 
