@@ -11,6 +11,7 @@ from carla_env import CarlaEnv
 from environment import SDAEnv
 from pilco_gp import PILCOGaussianProcess as pilco_gp
 
+import matplotlib.pyplot as plt
 
 def rollout(env: SDAEnv, horizon, verbose=False):
 	# reset environment
@@ -103,9 +104,9 @@ def train_offline(args, file_path="data"):
 	# initialisation
 	pilco = None
 	init = True
-	target_batches = 1 # keep this value less than actual number of batches available for testing sample
+	target_batches = 5 # keep this value less than actual number of batches available for testing sample
 	count = 1
-	T = 20
+	T = 149
 
 	# fetch the next batch
 	state_actions, diffs = next_batch(state_file, action_file)
@@ -123,21 +124,49 @@ def train_offline(args, file_path="data"):
 			if count >= target_batches:
 				break
 			new_state_actions, new_diffs = next_batch(state_file, action_file)
+			new_state_actions = new_state_actions[:T, :]
+			new_diffs = new_diffs[:T, :]
+
 			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
 			diffs = np.vstack((diffs, new_diffs[:T, :]))
+
+			# pilco.set_XY(state_actions, diffs)
+			print("Size of model: " + str(len(diffs)))
 			pilco.set_XY(state_actions, diffs)
 
 		pilco.optimise(restarts=1)
 		count += 1
-		print("time taken for batch: {} seconds".format(time.time() - start))
+		# print("time taken for batch: {} seconds".format(time.time() - start))
 
 	# Sample from model
-	# TODO:
 	if pilco is not None:
+
+		errors = None
 		new_state_actions, new_diffs = next_batch(state_file, action_file)
 		if new_state_actions is not None:
-			predicted_diffs = pilco.sample(np.stack([new_state_actions[0]]))
-			print("Diffs predicted: " + str(predicted_diffs))
+			for i in range(len(new_state_actions)):
+				if i != len(new_state_actions) - 1:
+					predicted_diffs = pilco.sample(np.stack([new_state_actions[i]]))
+					actual_diff = new_diffs[i]
+					# print("Diffs predicted: " + str(predicted_diffs))
+					# print("Actual diff: " + str(actual_diff))
+
+					batch_errors = abs((actual_diff - predicted_diffs) / predicted_diffs)
+					print("Error percentage: " + str(batch_errors))
+
+					if errors is None:
+						errors = batch_errors
+					else:
+						errors = np.dstack((errors, np.array(batch_errors)))
+		print("Errors percentage average: " + str([np.average(errors[0][i]) for i in range(errors.shape[1])]))
+
+		# plt.plot(np.arange(0, errors.shape[2]), np.array(list(map(lambda x: 1 if x > 1 else x, errors[0][5]))))
+		fig, axs = plt.subplots(errors.shape[1])
+		fig.suptitle("Prediction Error in Percentage")
+		for i in range(errors.shape[1]):
+			axs[i].plot(np.arange(0, errors.shape[2]), np.array(list(map(lambda x: 1 if x > 1 else x, errors[0][i]))))
+		plt.show()
+
 
 	print("Exiting...")
 
@@ -181,15 +210,15 @@ def parse_state(raw_state):
 	data = state_json['data']
 
 
-	v = data['vehicle']
-	state = np.hstack(([], [v[0]/180, v[1]/180, v[2]/180, v[3]/100, v[4]/100, v[5]/100]))
-
-	p = data['peds']
-	state = np.hstack((state, [p[0]/180, p[1]/180, p[2]/180, p[3]/100, p[4]/100, p[5]/100]))
+	# v = data['vehicle']
+	# state = np.hstack(([], [v[0]/100, v[1]/100, v[2]/100, v[3]/5, v[4]/5, v[5]/5]))
+	#
+	# p = data['peds']
+	# state = np.hstack((state, [p[0]/100, p[1]/100, p[2]/100, p[3]/5, p[4]/5, p[5]/5]))
 
 	w = data['weather']
-	state = np.hstack((state, [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/90]))
-
+	# state = np.hstack((state, [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/90]))
+	state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/90]))
 	return state
 
 

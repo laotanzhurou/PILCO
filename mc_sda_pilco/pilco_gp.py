@@ -27,8 +27,8 @@ class PILCOGaussianProcess:
 				i += 1
 			print('-----Learned models------')
 			pd.set_option('precision', 3)
-			print('---Lengthscales---')
-			print(pd.DataFrame(data=lengthscales))
+			# print('---Lengthscales---')
+			# print(pd.DataFrame(data=lengthscales))
 			print('---Variances---')
 			print(pd.DataFrame(data=variances))
 			print('---Noises---')
@@ -40,5 +40,5 @@ class PILCOGaussianProcess:
 	def sample(self, x):
 		start = time.time()
 		y = list(map(lambda m: m.predict_f_samples(x, 1).flat[0], self.mgpr.models))
-		print("Time taken for sampling: " + str(time.time() - start) + " seconds")
+		# print("Time taken for sampling: " + str(time.time() - start) + " seconds")
 		return np.stack(y)
