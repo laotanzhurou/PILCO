@@ -40,7 +40,7 @@ class MGPR(gpflow.Parameterized):
             self.models[i].X = X
             self.models[i].Y = Y[:, i:i+1]
 
-    def optimize(self, restarts=1):
+    def optimize(self, restarts=1, verbose=False):
         if len(self.optimizers) == 0:  # This is the first call to optimize();
             for model in self.models:
                 # Create an gpflow.train.ScipyOptimizer object for every model embedded in mgpr
@@ -63,6 +63,9 @@ class MGPR(gpflow.Parameterized):
                     best_parameters = model.read_values(session=session)
                     best_likelihood = likelihood
             model.assign(best_parameters)
+
+        if verbose:
+            print("Likelihood after optimisation: {}".format(np.exp([m.compute_log_likelihood() for m in self.models])))
 
     def predict_on_noisy_inputs(self, m, s):
         iK, beta = self.calculate_factorizations()
