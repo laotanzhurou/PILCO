@@ -38,10 +38,11 @@ class PILCOGaussianProcess:
 	def set_XY(self, X, Y):
 		self.mgpr.set_XY(X, Y)
 
-	def sample(self, x):
+	def sample(self, x, verbose=False):
 		start = time.time()
 		y = list(map(lambda m: m.predict_f_samples(x, 1).flat[0], self.mgpr.models))
-		print("Time taken for sampling: " + str(time.time() - start) + " seconds")
+		if verbose:
+			print("Time taken for sampling: " + str(time.time() - start) + " seconds")
 		return np.stack(y)
 
 	def samples(self, X):

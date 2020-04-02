@@ -99,15 +99,16 @@ def train_offline(args, file_path="data"):
 	if args.files is not None:
 		file_path = args.files
 
-	state_file = open(file_path + "/state.txt", "r").readlines()
-	action_file = open(file_path + "/action.txt", "r").readlines()
+	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
+	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
 
 	# initialisation
 	pilco = None
 	init = True
-	target_batches = 5 # keep this value less than actual number of batches available for testing sample
 	count = 1
 	T = 149
+
+	target_batches = int(args.batches) if args.batches is not None else 5
 
 	# fetch the next batch
 	state_actions, diffs = next_batch(state_file, action_file)
@@ -150,25 +151,33 @@ def train_offline(args, file_path="data"):
 					predicted_diffs = pilco.sample(np.stack([new_state_actions[i]]))
 					actual_diff = new_diffs[i]
 
-					print("Diffs predicted: " + str(predicted_diffs))
-					print("Actual diff: " + str(actual_diff))
+					# print("Diffs predicted: " + str(predicted_diffs))
+					# print("Actual diff: " + str(actual_diff))
 
-					batch_errors = abs((actual_diff - predicted_diffs) / predicted_diffs)
-					print("Error percentage: " + str(batch_errors))
+					predict_error = abs((actual_diff - predicted_diffs) / predicted_diffs)
+					# print("Error percentage: " + str(batch_errors))
+
+					# cap the error percentage at 1
+					normalised_error = np.array(list(map(lambda x: 1 if x > 1 else x, predict_error)))
 
 					if errors is None:
-						errors = batch_errors
+						errors = normalised_error
 					else:
-						errors = np.dstack((errors, np.array(batch_errors)))
+						errors = np.dstack((errors, np.array(normalised_error)))
 
-		print("Errors percentage average: " + str([np.average(errors[0][i]) for i in range(errors.shape[1])]))
+
+		average_errors = [np.average(errors[0][i]) for i in range(errors.shape[1])]
+		print("Errors percentage average: " + str(average_errors))
 
 		fig, axs = plt.subplots(errors.shape[1])
-		fig.suptitle("Prediction Error in Percentage")
+		fig.suptitle("Prediction Error in Percentage with {} Batches".format(target_batches))
 		for i in range(errors.shape[1]):
-			axs[i].plot(np.arange(0, errors.shape[2]), np.array(list(map(lambda x: 1 if x > 1 else x, errors[0][i]))))
-		plt.show()
+			axs[i].plot(np.arange(0, errors.shape[2]), errors[0][i])
+			axs[i].text(0.05, 0.95, "Average error percent: {}".format(round(average_errors[i], 3)), fontsize=14, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.1))
 
+		# plt.show()
+		fig.savefig("Figure {} batches.png".format(target_batches))
+		plt.close(fig)
 
 	print("Exiting...")
 
@@ -188,11 +197,6 @@ def next_batch(state_file, action_file):
 		state_file.pop(0)
 		state, prev_raw_state = parse_state(state_file.pop(0))
 
-	# if heading in state_file[0] and heading in action_file[0]:
-	# 	state_file.pop(0)
-	# 	action_file.pop(0)
-	# 	state, prev_raw_state = parse_state(state_file.pop(0))
-
 	# loop
 	while True:
 		# Terminal condition: next line is heading or no next line
@@ -203,9 +207,10 @@ def next_batch(state_file, action_file):
 		action = parse_action(action_file.pop(0), prev_raw_state)
 		new_state, _raw = parse_state(state_file.pop(0))
 
-
-		state_actions.append(np.hstack((state, action)))
-		diffs.append(new_state - state)
+		# skip the first a few frames where vehicle is not moving
+		if _raw['vehicle'][1] <= 118:
+			state_actions.append(np.hstack((state, action)))
+			diffs.append(new_state - state)
 
 		state = new_state
 		prev_raw_state = _raw
@@ -221,20 +226,13 @@ def parse_state(raw_state):
 	p = data['peds']
 	w = data['weather']
 
+	# all states
 	# state = np.hstack(([], [v[0]/100, v[1]/100, v[2]/100, v[3]/5, v[4]/5, v[5]/5]))
 	# state = np.hstack((state, [p[0]/100, p[1]/100, p[2]/100, p[3]/5, p[4]/5, p[5]/5]))
 	# state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/180 + 0.5]))
 
-	# only pos_x, pos_y, rain possibility
-	# state = np.hstack(([], [v[0]/6747.5, v[1]/5656.2, w[2]/100]))
-
-	# only pos_x, rain possibility
-	state = np.hstack(([], [(v[0]-2)*100, w[2]/100]))
-
-	# only pos_x
-	# max - min = 0.0028672218322753906
-	# init = 2
-	# state = np.hstack(([], [ (v[0]-2) * 100 ]))
+	# only pos_y, rain possibility
+	state = np.hstack(([], [(v[1]-80) / 40, w[2]/100]))
 
 	return state, data
 
@@ -266,12 +264,10 @@ def parse_action(raw_action, raw_state):
 	#
 	# action = np.hstack(([], [a[0] / 100, a[1] / 100, a[2] / 100, a[3] / 100, a[4] / 360, a[5] / 180]))
 
-	prev_vehicle_pos_x = raw_state['vehicle'][0]
 	prev_state_val = raw_state['weather'][2]
 	a[2] = max(min(a[2], 100 - prev_state_val), 0 - prev_state_val)
 
 	action = np.hstack(([], [a[2] / 100]))
-	# action = np.hstack(([], (prev_vehicle_pos_x-2) * 100 ))
 
 	return action
 
@@ -295,6 +291,7 @@ if __name__ == '__main__':
 		parser.add_argument("--offline", "-o", help="train model in offline mode")
 		parser.add_argument("--files", "-f", help="path of data files")
 		parser.add_argument("--verbose", "-v", help="path of data files")
+		parser.add_argument("--batches", "-b", help="number of batches to execute")
 		args = parser.parse_args()
 		main(args)
 
