@@ -21,8 +21,12 @@ def dump_pilco_to_files(pilco, training_sets, model_size, file_path="data/models
 		pickle.dump(pilco.mgpr, file)
 
 
-def run_test(training_set_size, test_sets_size, horizon, pilco, state_file, action_file, display=False):
+def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=False):
+
+	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
+	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
 	all_errors = None
+
 	for t in range(test_sets_size):
 		print("\n###Testing set: " + str(t + 1))
 		errors = None

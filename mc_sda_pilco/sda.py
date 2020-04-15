@@ -151,7 +151,7 @@ def train_offline(args, file_path="data/training_set"):
 				dump_pilco_to_files(pilco, count, model_size)
 
 			# measure prediction accuracy against test set
-			run_test(count, test_sets, 100, pilco, state_file, action_file)
+			run_test(count, test_sets, 100, pilco)
 
 	print("Exiting...")
 
@@ -161,14 +161,12 @@ def run_testset(args, file_path="data/test_set"):
 	test_sets = int(args.tests) if args.tests is not None else 2
 	load_pilco_size = int(args.load_pilco_size) if args.load_pilco_size is not None else 10
 	horizon = 100
-	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
-	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
 
 	# load serialised PILCO model
 	pilco = load_pilco_from_files(load_pilco_size)
 
 	# run tests
-	run_test(load_pilco_size, test_sets, horizon, pilco, state_file, action_file, display=True)
+	run_test(load_pilco_size, test_sets, horizon, pilco, file_path=file_path, display=True)
 
 	print("Exiting...")
 
