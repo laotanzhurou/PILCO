@@ -126,8 +126,11 @@ def parse_state(raw_state):
 	# state = np.hstack((state, [p[0]/100, p[1]/100, p[2]/100, p[3]/5, p[4]/5, p[5]/5]))
 	# state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/180 + 0.5]))
 
-	# only pos_y, rain possibility
-	state = np.hstack(([], [(v[1]-80) / 40, w[2]/100]))
+	# only pos_y, velocity_y, rain possibility
+	pos_y = (-v[1]+120) / 40
+	vel_y = -v[4] / 10
+	rain_possi = w[2]/100
+	state = np.hstack(([], [pos_y, vel_y, rain_possi]))
 
 	return state, data
 
