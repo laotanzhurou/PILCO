@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import json
 import time
+from datetime import datetime
 import sys
 import argparse
 from random import randrange
@@ -9,7 +10,9 @@ from random import randrange
 from carla_client import CarlaClient
 from carla_env import CarlaEnv
 from environment import SDAEnv
+
 from pilco_gp import PILCOGaussianProcess as pilco_gp
+from util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_files, Logger
 
 import matplotlib.pyplot as plt
 
@@ -48,7 +51,6 @@ def sample_action(env: SDAEnv):
 	sun_azimuth_angle = randrange(-4, 4)
 	sun_altitude_angle = randrange(-15, 15)
 	return cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle
-
 
 
 def train(verbose=False):
@@ -95,187 +97,90 @@ def train(verbose=False):
 		print("exiting sda...")
 
 
-def train_offline(args, file_path="data"):
+def train_offline(args, file_path="data/training_set"):
 	if args.files is not None:
 		file_path = args.files
 
-	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
-	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
+	state_file = open(file_path + "/state_15k.txt", "r").readlines()
+	action_file = open(file_path + "/action_15k.txt", "r").readlines()
 
 	# initialisation
-	pilco = None
-	init = True
+	training_sets = int(args.trainings) if args.trainings is not None else 5
+	test_sets = int(args.tests) if args.tests is not None else 2
+	batch_size = int(args.batch) if args.batch is not None else 1
+	dump = bool(args.dump) if args.dump is not None else False
 	count = 1
 	T = 149
 
-	target_batches = int(args.batches) if args.batches is not None else 5
+	# logging
+	log_file_name = "logs/" + "train_" + str(training_sets) + "_test_" + str(test_sets) + "_time_" + str(datetime.now()) + ".log"
+	sys.stdout = Logger(log_file_name)
 
-	# fetch the next batch
+	# init
+	print("### Training Set Count {} ####".format(count))
 	state_actions, diffs = next_batch(state_file, action_file)
-	if state_actions is None or diffs is None:
-		raise Exception("State data file is empty")
+	pilco = pilco_gp(state_actions, diffs)
+	pilco.init()
+	print("initialisation complete.\n")
 
-	while True:
-		start = time.time()
-		print("### Training Batch {} ####".format(count))
-		if init:
-			pilco = pilco_gp(state_actions, diffs)
-			pilco.init()
-			init = False
-		else:
-			if count > target_batches:
-				break
-			new_state_actions, new_diffs = next_batch(state_file, action_file)
-			new_state_actions = new_state_actions[:T, :]
-			new_diffs = new_diffs[:T, :]
-
-			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
-			diffs = np.vstack((diffs, new_diffs[:T, :]))
-
-			# pilco.set_XY(state_actions, diffs)
-			print("Size of model: " + str(len(diffs)))
-			pilco.set_XY(state_actions, diffs)
-
-		pilco.optimise(restarts=5, verbose=True)
+	while count < training_sets:
 		count += 1
-		print("time taken for batch: {} seconds".format(time.time() - start))
 
-	# Sample from model
-	if pilco is not None:
-
-		errors = None
+		# obtain data from new batch
 		new_state_actions, new_diffs = next_batch(state_file, action_file)
-		if new_state_actions is not None:
-			for i in range(len(new_state_actions)):
-				if i != len(new_state_actions) - 1:
-					predicted_diffs = pilco.sample(np.stack([new_state_actions[i]]))
-					actual_diff = new_diffs[i]
+		new_state_actions = new_state_actions[:T, :]
+		new_diffs = new_diffs[:T, :]
 
-					# print("Diffs predicted: " + str(predicted_diffs))
-					# print("Actual diff: " + str(actual_diff))
+		# add to existing data points
+		state_actions = np.vstack((state_actions, new_state_actions))
+		diffs = np.vstack((diffs, new_diffs[:T, :]))
 
-					predict_error = abs((actual_diff - predicted_diffs) / predicted_diffs)
-					# print("Error percentage: " + str(batch_errors))
+		if count % batch_size == 0:
+			# optimise model with new data
+			start = time.time()
+			print("### Training Set Count {} ####".format(count))
 
-					# cap the error percentage at 1
-					normalised_error = np.array(list(map(lambda x: 1 if x > 1 else x, predict_error)))
+			pilco.set_XY(state_actions, diffs)
+			model_size = diffs.shape[0] * diffs.shape[1]
+			print("Size of model: " + str(model_size))
 
-					if errors is None:
-						errors = normalised_error
-					else:
-						errors = np.dstack((errors, np.array(normalised_error)))
+			pilco.optimise(restarts=5, verbose=True)
+			print("time taken for batch: {} seconds".format(time.time() - start))
 
+			if dump:
+				dump_pilco_to_files(pilco, count, model_size)
 
-		average_errors = [np.average(errors[0][i]) for i in range(errors.shape[1])]
-		print("Errors percentage average: " + str(average_errors))
-
-		fig, axs = plt.subplots(errors.shape[1])
-		fig.suptitle("Prediction Error in Percentage with {} Batches".format(target_batches))
-		for i in range(errors.shape[1]):
-			axs[i].plot(np.arange(0, errors.shape[2]), errors[0][i])
-			axs[i].text(0.05, 0.95, "Average error percent: {}".format(round(average_errors[i], 3)), fontsize=14, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.1))
-
-		# plt.show()
-		fig.savefig("Figure {} batches.png".format(target_batches))
-		plt.close(fig)
+			# measure prediction accuracy against test set
+			run_test(count, test_sets, 100, pilco, state_file, action_file)
 
 	print("Exiting...")
 
 
-def next_batch(state_file, action_file):
-	heading = "initiating"
-
+def run_testset(args, file_path="data/test_set"):
 	# init
-	state_actions = []
-	diffs = []
-	state = None
-	prev_raw_state = None
-	if len(state_file) == 0 or len(action_file) == 0:
-		return None, None
+	test_sets = int(args.tests) if args.tests is not None else 2
+	load_pilco_size = int(args.load_pilco_size) if args.load_pilco_size is not None else 10
+	horizon = 100
+	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
+	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
 
-	if heading in state_file[0]:
-		state_file.pop(0)
-		state, prev_raw_state = parse_state(state_file.pop(0))
+	# load serialised PILCO model
+	pilco = load_pilco_from_files(load_pilco_size)
 
-	# loop
-	while True:
-		# Terminal condition: next line is heading or no next line
-		if len(state_file) == 0 or heading in state_file[0]:
-			break
+	# run tests
+	run_test(load_pilco_size, test_sets, horizon, pilco, state_file, action_file, display=True)
 
-		# Loop logic: add state and action to list
-		action = parse_action(action_file.pop(0), prev_raw_state)
-		new_state, _raw = parse_state(state_file.pop(0))
-
-		# skip the first a few frames where vehicle is not moving
-		if _raw['vehicle'][1] <= 118:
-			state_actions.append(np.hstack((state, action)))
-			diffs.append(new_state - state)
-
-		state = new_state
-		prev_raw_state = _raw
-
-	return np.stack(state_actions), np.stack(diffs)
-
-
-def parse_state(raw_state):
-	state_json = json.loads(raw_state)
-	data = state_json['data']
-
-	v = data['vehicle']
-	p = data['peds']
-	w = data['weather']
-
-	# all states
-	# state = np.hstack(([], [v[0]/100, v[1]/100, v[2]/100, v[3]/5, v[4]/5, v[5]/5]))
-	# state = np.hstack((state, [p[0]/100, p[1]/100, p[2]/100, p[3]/5, p[4]/5, p[5]/5]))
-	# state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/180 + 0.5]))
-
-	# only pos_y, rain possibility
-	state = np.hstack(([], [(v[1]-80) / 40, w[2]/100]))
-
-	return state, data
-
-
-def parse_action(raw_action, raw_state):
-	action_json = json.loads(raw_action)
-	a = action_json['data']
-
-	# test offsetting invalid actions to 0, e.g. sun altitude angle -5 when it's already 0
-	# for i in range(6):
-	# 	prev_state_val = raw_state['weather'][i]
-	# 	if i < 4:
-	# 		# guard for lower bound
-	# 		if prev_state_val + a[i] <= 0:
-	# 			a[i] = max(a[i], 0 - prev_state_val)
-	# 		# guard for upper bound
-	# 		if prev_state_val + a[i] >= 100:
-	# 			a[i] = min(a[i], 100 - prev_state_val)
-	# 	elif i == 4:
-	# 		if prev_state_val + a[i] <= 0:
-	# 			a[i] = max(a[i], 0 - prev_state_val)
-	# 		if prev_state_val + a[i] >= 360:
-	# 			a[i] = min(a[i], 360 - prev_state_val)
-	# 	elif i == 5:
-	# 		if prev_state_val + a[i] <= -90:
-	# 			a[i] = max(a[i], (-90) - prev_state_val)
-	# 		if prev_state_val + a[i] >= 90:
-	# 			a[i] = min(a[i], 90 - prev_state_val)
-	#
-	# action = np.hstack(([], [a[0] / 100, a[1] / 100, a[2] / 100, a[3] / 100, a[4] / 360, a[5] / 180]))
-
-	prev_state_val = raw_state['weather'][2]
-	a[2] = max(min(a[2], 100 - prev_state_val), 0 - prev_state_val)
-
-	action = np.hstack(([], [a[2] / 100]))
-
-	return action
+	print("Exiting...")
 
 
 def main(args):
 
-	if args.offline:
+	mode = int(args.mode) if args.mode is not None else 1
 
+	if mode == 1:
+		print("testing against pre-trained model")
+		run_testset(args)
+	elif mode == 2:
 		print("training offline...")
 		train_offline(args)
 	else:
@@ -288,10 +193,14 @@ if __name__ == '__main__':
 
 	try:
 		parser = argparse.ArgumentParser()
-		parser.add_argument("--offline", "-o", help="train model in offline mode")
+		parser.add_argument("--mode", "-m", help="1: test against a pre-trained model, 2: offline training. 3: online training ")
 		parser.add_argument("--files", "-f", help="path of data files")
 		parser.add_argument("--verbose", "-v", help="path of data files")
-		parser.add_argument("--batches", "-b", help="number of batches to execute")
+		parser.add_argument("--trainings", "-r", help="number of training sets to execute")
+		parser.add_argument("--batch", "-b", help="number of batches to execute")
+		parser.add_argument("--dump", "-d", help="dumps pilco model after each batch of training is done")
+		parser.add_argument("--tests", "-t", help="number of batches to execute")
+		parser.add_argument("--load_pilco_size", "-l", help="number of batches to execute")
 		args = parser.parse_args()
 		main(args)
 
