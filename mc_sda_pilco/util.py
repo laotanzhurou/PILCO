@@ -1,7 +1,7 @@
 import json
-import time
+from time import time
+from datetime import datetime
 import sys
-import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -26,11 +26,20 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
 	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
 	all_errors = None
+	dimensions = 0
 
 	for t in range(test_sets_size):
 		print("\n###Testing set: " + str(t + 1))
+		start = time()
 		errors = None
 		new_state_actions, new_diffs = next_batch(state_file, action_file)
+
+		if dimensions == 0:
+			dimensions = len(new_diffs)
+
+		# cap horizon at data size
+		horizon = min(len(new_diffs), horizon)
+		print("test time steps: " + str(horizon))
 
 		for i in range(horizon):
 			predicted_diffs = pilco.sample(np.stack([new_state_actions[i]]))
@@ -46,8 +55,10 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 			else:
 				errors = np.vstack((errors, np.array(normalised_error)))
 
+		end = time()
 		batch_average = [np.average(errors[:, i]) for i in range(errors.shape[1])]
 		print("Batch average errors percentage: " + str(batch_average))
+		print("Time taken for test: {} seconds".format(str(end - start)))
 
 		if all_errors is None:
 			all_errors = errors
@@ -64,17 +75,18 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 	fig.suptitle("Average Prediction Error % Test set {} Training set {}".format(test_sets_size, training_set_size))
 	for i in range(average_errors.shape[1]):
 		axs[i].plot(np.arange(0, average_errors.shape[0]), average_errors[:, i])
-		axs[i].text(0.05, 0.95, "Average error percent: {}".format(round(np.average(average_errors[:, i]), 3)),
-					fontsize=14, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.1))
+		axs[i].legend(["average error: {}".format(round(np.average(average_errors[:, i]), 3))])
+		# axs[i].text(0.05, 0.95, "Average error percent: {}".format(round(np.average(average_errors[:, i]), 3)),
+		# 			fontsize=14, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.1))
 
 	if display:
 		plt.show()
 	else:
 		fig_path = "output/"
-		fig.savefig(fig_path + "Figure Training sets {} test sets {}.png".format(training_set_size, test_sets_size))
+		fig.savefig(fig_path + "{} Dimensions {} Training sets {} test sets {}.png".format(str(datetime.now()), str(dimensions), training_set_size, test_sets_size))
 		plt.close(fig)
 
-	print("Test completes.")
+	print("Test completes. \n")
 
 
 def next_batch(state_file, action_file):
@@ -128,7 +140,7 @@ def parse_state(raw_state):
 
 	# only pos_y, velocity_y, rain possibility
 	pos_y = (-v[1]+120) / 40
-	vel_y = -v[4] / 10
+	vel_y = -v[4] / 40
 	rain_possi = w[2]/100
 	state = np.hstack(([], [pos_y, vel_y, rain_possi]))
 

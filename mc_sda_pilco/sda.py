@@ -144,14 +144,14 @@ def train_offline(args, file_path="data/training_set"):
 			model_size = diffs.shape[0] * diffs.shape[1]
 			print("Size of model: " + str(model_size))
 
-			pilco.optimise(restarts=5, verbose=True)
-			print("time taken for batch: {} seconds".format(time.time() - start))
+			pilco.optimise(restarts=3, verbose=True)
+			print("time taken for optimisation: {} seconds".format(time.time() - start))
 
 			if dump:
 				dump_pilco_to_files(pilco, count, model_size)
 
 			# measure prediction accuracy against test set
-			run_test(count, test_sets, 100, pilco)
+			run_test(count, test_sets, 110, pilco)
 
 	print("Exiting...")
 
