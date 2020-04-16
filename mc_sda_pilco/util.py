@@ -10,7 +10,7 @@ import pickle
 
 
 def load_pilco_from_files(training_sets, model_size, file_path="data/models/"):
-	path = file_path + 'pilco_' + training_sets + "_" + model_size + '.dump'
+	path = file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump'
 	if Path(path).exists():
 		with open(path, 'rb') as file:
 			return pickle.load(file)
@@ -18,7 +18,7 @@ def load_pilco_from_files(training_sets, model_size, file_path="data/models/"):
 
 def dump_pilco_to_files(pilco, training_sets, model_size, file_path="data/models/"):
 	with open(file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump', 'wb+') as file:
-		pickle.dump(pilco.mgpr, file)
+		pickle.dump(pilco.snapshot(training_sets), file)
 
 
 def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=False):
@@ -28,6 +28,8 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 	all_errors = None
 	dimensions = 0
 
+	total_runtime = 0
+
 	for t in range(test_sets_size):
 		print("\n###Testing set: " + str(t + 1))
 		start = time()
@@ -35,7 +37,7 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 		new_state_actions, new_diffs = next_batch(state_file, action_file)
 
 		if dimensions == 0:
-			dimensions = len(new_diffs)
+			dimensions = new_diffs.shape[1]
 
 		# cap horizon at data size
 		horizon = min(len(new_diffs), horizon)
@@ -59,6 +61,8 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 		batch_average = [np.average(errors[:, i]) for i in range(errors.shape[1])]
 		print("Batch average errors percentage: " + str(batch_average))
 		print("Time taken for test: {} seconds".format(str(end - start)))
+		total_runtime += end - start
+
 
 		if all_errors is None:
 			all_errors = errors
@@ -87,6 +91,8 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 		plt.close(fig)
 
 	print("Test completes. \n")
+
+	return total_runtime / test_sets_size
 
 
 def next_batch(state_file, action_file):

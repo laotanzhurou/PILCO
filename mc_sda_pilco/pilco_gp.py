@@ -2,6 +2,7 @@ import pandas as pd
 from pilco import models
 import numpy as np
 import time
+
 class PILCOGaussianProcess:
 
 	def __init__(self, X, Y):
@@ -15,7 +16,6 @@ class PILCOGaussianProcess:
 
 	def optimise(self, restarts=1, verbose=False):
 		self.mgpr.optimize(restarts=restarts, verbose=verbose)
-
 		# if verbose:
 		# 	lengthscales = {}
 		# 	variances = {}
@@ -47,3 +47,25 @@ class PILCOGaussianProcess:
 
 	def samples(self, X):
 		return np.array([self.sample( x.reshape(1, len(x)) ) for x in X])
+
+	def snapshot(self, training_set_count):
+		parameters = []
+		for model in self.mgpr.models:
+			session = model.enquire_session(None)
+			best_parameters = model.read_values(session=session)
+			parameters.append(best_parameters)
+		dump = ModelDump(training_set_count, parameters)
+		return dump
+
+
+	@staticmethod
+	def from_dump(dump, X, Y):
+		pilco = PILCOGaussianProcess(X, Y)
+		for model, best_params in zip(pilco.mgpr.models, dump.parameters):
+			model.assign(best_params)
+		return pilco
+
+class ModelDump:
+	def __init__(self, size, parameters):
+		self.size = size
+		self.parameters = parameters

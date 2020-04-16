@@ -116,6 +116,11 @@ def train_offline(args, file_path="data/training_set"):
 	log_file_name = "logs/" + "train_" + str(training_sets) + "_test_" + str(test_sets) + "_time_" + str(datetime.now()) + ".log"
 	sys.stdout = Logger(log_file_name)
 
+	# keep track of time in each step for perf
+	set_index = []
+	training_sets_time = []
+	test_sets_time = []
+
 	# init
 	print("### Training Set Count {} ####".format(count))
 	state_actions, diffs = next_batch(state_file, action_file)
@@ -133,7 +138,7 @@ def train_offline(args, file_path="data/training_set"):
 
 		# add to existing data points
 		state_actions = np.vstack((state_actions, new_state_actions))
-		diffs = np.vstack((diffs, new_diffs[:T, :]))
+		diffs = np.vstack((diffs, new_diffs))
 
 		if count % batch_size == 0:
 			# optimise model with new data
@@ -145,28 +150,69 @@ def train_offline(args, file_path="data/training_set"):
 			print("Size of model: " + str(model_size))
 
 			pilco.optimise(restarts=3, verbose=True)
-			print("time taken for optimisation: {} seconds".format(time.time() - start))
+			end = time.time()
+			print("time taken for optimisation: {} seconds".format(end - start))
 
 			if dump:
 				dump_pilco_to_files(pilco, count, model_size)
 
 			# measure prediction accuracy against test set
-			run_test(count, test_sets, 110, pilco)
+			test_time = run_test(count, test_sets, 110, pilco)
+
+			# update time
+			set_index.append(count)
+			training_sets_time.append(end - start)
+			test_sets_time.append(test_time)
 
 	print("Exiting...")
 
+	# plot time taken
+	plt.subplot(1, 2, 1)
+	plt.title("Training Time")
+	plt.plot(np.array(set_index), np.array(training_sets_time))
+	plt.xlabel("# of Training Sets")
+	plt.ylabel("Time in Seconds")
 
-def run_testset(args, file_path="data/test_set"):
+
+	plt.subplot(1, 2, 2)
+	plt.title("Test Time")
+	plt.plot(np.array(set_index), np.array(test_sets_time))
+	plt.xlabel("# of Training Sets")
+	plt.ylabel("Time in Seconds")
+
+	fig_path = "output/"
+	plt.savefig(fig_path + "{} Performance.png".format(str(datetime.now())))
+	plt.close()
+
+def run_testset(args, file_path="data/training_set"):
 	# init
 	test_sets = int(args.tests) if args.tests is not None else 2
-	load_pilco_size = int(args.load_pilco_size) if args.load_pilco_size is not None else 10
-	horizon = 100
+	trained_size = 4
+	trained_model_size = 1425
 
-	# load serialised PILCO model
-	pilco = load_pilco_from_files(load_pilco_size)
+	horizon = 110
+	T = 149
+
+	state_file = open(file_path + "/state_15k.txt", "r").readlines()
+	action_file = open(file_path + "/action_15k.txt", "r").readlines()
+
+	# load serialised PILCO parameters
+	model_dump = load_pilco_from_files(trained_size, trained_model_size)
+
+	# load data points from traing sets
+	X, Y = next_batch(state_file, action_file)
+	trained_size -= 1
+	while trained_size > 0:
+		x, y = next_batch(state_file, action_file)
+		X = np.vstack((X, x[:T, :]))
+		Y = np.vstack((Y, y[:T, :]))
+		trained_size -= 1
+
+	# re-create PILCO
+	pilco = pilco_gp.from_dump(model_dump, X, Y)
 
 	# run tests
-	run_test(load_pilco_size, test_sets, horizon, pilco, file_path=file_path, display=True)
+	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True)
 
 	print("Exiting...")
 
