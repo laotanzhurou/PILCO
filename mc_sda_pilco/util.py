@@ -21,7 +21,7 @@ def dump_pilco_to_files(pilco, training_sets, model_size, file_path="data/models
 		pickle.dump(pilco.snapshot(training_sets), file)
 
 
-def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=False):
+def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True):
 
 	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
 	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
@@ -75,22 +75,19 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 	print("\nOverall average error percentage: \n" + str(
 		[np.average(average_errors[:, i]) for i in range(average_errors.shape[1])]))
 
-	fig, axs = plt.subplots(average_errors.shape[1])
-	fig.suptitle("Average Prediction Error % Test set {} Training set {}".format(test_sets_size, training_set_size))
-	for i in range(average_errors.shape[1]):
-		axs[i].plot(np.arange(0, average_errors.shape[0]), average_errors[:, i])
-		axs[i].legend(["average error: {}".format(round(np.average(average_errors[:, i]), 3))])
-		# axs[i].text(0.05, 0.95, "Average error percent: {}".format(round(np.average(average_errors[:, i]), 3)),
-		# 			fontsize=14, verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.1))
-
 	if display:
-		plt.show()
-	else:
+		fig, axs = plt.subplots(average_errors.shape[1])
+		fig.suptitle("Average Prediction Error % Test set {} Training set {}".format(test_sets_size, training_set_size))
+
+		for i in range(average_errors.shape[1]):
+			axs[i].plot(np.arange(0, average_errors.shape[0]), average_errors[:, i])
+			axs[i].legend(["average error: {}".format(round(np.average(average_errors[:, i]), 3))])
+
 		fig_path = "output/"
 		fig.savefig(fig_path + "{} Dimensions {} Training sets {} test sets {}.png".format(str(datetime.now()), str(dimensions), training_set_size, test_sets_size))
 		plt.close(fig)
 
-	print("Test completes. \n")
+		print("Test completes. \n")
 
 	return total_runtime / test_sets_size
 

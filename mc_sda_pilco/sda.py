@@ -187,8 +187,8 @@ def train_offline(args, file_path="data/training_set"):
 def run_testset(args, file_path="data/training_set"):
 	# init
 	test_sets = int(args.tests) if args.tests is not None else 2
-	trained_size = 4
-	trained_model_size = 1425
+	trained_size = 48
+	trained_model_size = 17256
 
 	horizon = 110
 	T = 149
@@ -198,6 +198,7 @@ def run_testset(args, file_path="data/training_set"):
 
 	# load serialised PILCO parameters
 	model_dump = load_pilco_from_files(trained_size, trained_model_size)
+	print("pre-trained PILCO model loaded...")
 
 	# load data points from traing sets
 	X, Y = next_batch(state_file, action_file)
