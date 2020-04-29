@@ -23,8 +23,10 @@ import image_converter
 
 import time
 
+import math
+
 # Controllers for the vehicle
-#from learning_agents.imitation.imitation_agent import ImitationAgent
+# from learning_agents.imitation.imitation_agent import ImitationAgent
 from CAL_agent.CAL_controller import CAL
 from measurements import Measurements
 
@@ -42,7 +44,6 @@ try:
     import queue
 except ImportError:
     import Queue as queue
-
 
 # High level direction commands for agents' run step input
 REACH_GOAL = 0.0
@@ -131,7 +132,8 @@ def apply_action(action, world):
         wind_intensity=max(0, min(100, w.wind_intensity + wind_intensity)),
         sun_azimuth_angle=max(0, min(360, w.sun_azimuth_angle + sun_azimuth_angle)),
         sun_altitude_angle=max(-90, min(90, w.sun_altitude_angle + sun_altitude_angle))
-        )
+    )
+
     world.set_weather(new_weather)
 
 
@@ -157,9 +159,11 @@ def state_from_world(world, vehicle, ped):
 
     # Populate vehicle state
     v_location = vehicle.get_location()
+    v_acceleration = vehicle.get_acceleration()
     v_velocity = vehicle.get_velocity()
     state["vehicle"] = [v_location.x, v_location.y, v_location.z,
-                        v_velocity.x, v_velocity.y, v_velocity.z]
+                        v_velocity.x, v_velocity.y, v_velocity.z,
+                        v_acceleration.x, v_acceleration.y, v_acceleration.z]
 
     # Populate pedestrian state
     p_location = ped.get_location()
@@ -210,7 +214,7 @@ def should_quit():
 def apply_agent_control(image, player, agent):
     """ Function to pack up the data into the necessary format for the agent to process """
     # print out the timestatmp of the image
-    meas =  Measurements()
+    meas = Measurements()
     meas.update_measurements(image, player)
     # Do some processing of the image dat
     # Store processed data to pass to agent
@@ -223,17 +227,33 @@ def apply_agent_control(image, player, agent):
     player.apply_control(control)
 
 
+def on_collision(event):
+    collided_actor = event.other_actor
+    impulse = event.normal_impulse
+    intensity = math.sqrt(impulse.x ** 2 + impulse.y ** 2 + impulse.z ** 2)
+    print("### collision happened: " + collided_actor.type_id + " intensity: " + str(intensity))
+    time.sleep(3)
+    return
+
+
 def init_env(world, actor_list):
     # Load the appropriate settings for the experiment
     bp_lib = world.get_blueprint_library()
 
     # Spawn the agent's vehicle into the scene
     vehicle_bp = bp_lib.find('vehicle.ford.mustang')
-    vehicle_tf = carla.Transform(carla.Location(2, 120, 2), carla.Rotation(yaw=-90))
+    vehicle_tf = carla.Transform(carla.Location(2, 100, 2), carla.Rotation(yaw=-90))
     vehicle = world.spawn_actor(vehicle_bp, vehicle_tf)
     actor_list.append(vehicle)
     # Advance to the next simulation step in the simulator to ensure car is spawned
     world.tick()
+
+    # Spawn the collision sensor
+    collision_sensor = world.spawn_actor(bp_lib.find('sensor.other.collision'),
+                                         carla.Transform(), attach_to=vehicle)
+
+    collision_sensor.listen(lambda event: on_collision(event))
+    actor_list.append(collision_sensor)
 
     # Create RGB camera
     camera_bp = bp_lib.find('sensor.camera.rgb')
@@ -254,7 +274,7 @@ def init_env(world, actor_list):
     agent = CAL('Town01', vehicle)
 
     # Spawn a pedestrian in front of the car
-    ped_bp = random.choice(bp_lib.filter('pedestrian'))
+    ped_bp = bp_lib.find('walker.pedestrian.0002')
     ped_tf = carla.Transform(carla.Location(2, 80, 2), carla.Rotation())
     ped_actor = world.spawn_actor(ped_bp, ped_tf)
     actor_list.append(ped_actor)
@@ -267,7 +287,7 @@ def init_env(world, actor_list):
 
 def reset(world, vehicle, pedestrian):
     # reset vehicle
-    vehicle_tf = carla.Transform(carla.Location(2, 120, 2), carla.Rotation(yaw=-90))
+    vehicle_tf = carla.Transform(carla.Location(2, 100, 1), carla.Rotation(yaw=-90))
     vehicle.set_transform(vehicle_tf)
 
     # reset pedestrian
@@ -275,7 +295,7 @@ def reset(world, vehicle, pedestrian):
     pedestrian.set_transform(ped_tf)
 
     # reset weather
-    world.set_weather(carla.WeatherParameters.ClearNoon)
+    world.set_weather(carla.WeatherParameters.HardRainSunset)
 
 
 def main():
@@ -324,11 +344,28 @@ def main():
                 if should_quit():
                     return
                 # Handling of init case
-                if(first_tick):
+                if (first_tick):
+                    w = world.get_weather()
+                    new_weather = carla.WeatherParameters(
+                        cloudyness=0,
+                        precipitation=0,
+                        precipitation_deposits=60,
+                        wind_intensity=0,
+                        sun_azimuth_angle=90,
+                        sun_altitude_angle=60
+                    )
+                    world.set_weather(new_weather)
+
+                    for i in range(10):
+                        clock.tick()
+                        sync_mode.tick(timeout=10.0)
+
+                    vehicle.set_velocity(carla.Vector3D(x=0, y=-20, z=0))
+
                     clock.tick()
                     snapshot, image_rgb = sync_mode.tick(timeout=10.0)
-                    first_tick = False
                     update_env(mq, world, vehicle, ped)
+                    first_tick = False
 
                 # Get next action from model
                 action_type, action = get_next_action_from_model(mq)
@@ -336,6 +373,23 @@ def main():
                 # Reset env if restart
                 if action_type == RESTART:
                     reset(world, vehicle, ped)
+                    # skip the next frames
+                    for i in range(20):
+                        clock.tick()
+                        sync_mode.tick(timeout=10.0)
+
+                    w = world.get_weather()
+                    new_weather = carla.WeatherParameters(
+                        cloudyness=0,
+                        precipitation=0,
+                        precipitation_deposits=60,
+                        wind_intensity=0,
+                        sun_azimuth_angle=90,
+                        sun_altitude_angle=60
+                    )
+                    world.set_weather(new_weather)
+
+                    vehicle.set_velocity(carla.Vector3D(x=0, y=-20, z=0))
 
                 # Otherwise, apply action then invoke vehicle controller
                 else:

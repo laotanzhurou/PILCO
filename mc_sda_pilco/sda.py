@@ -16,6 +16,7 @@ from util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_file
 
 import matplotlib.pyplot as plt
 
+
 def rollout(env: SDAEnv, horizon, verbose=False):
 	# reset environment
 	state = env.reset()

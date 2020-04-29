@@ -16,15 +16,18 @@ print("Connect to server...")
 socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5555")
 
-#  Do 10 requests, waiting each time for a response
+#  Data files
+fa = open("../data/training_set/action.txt", "w+")
+fs = open("../data/training_set/state.txt", "w+")
 
-fa = open("../data/action.txt", "w+")
-fs = open("../data/state.txt", "w+")
-
+# hyper parameters
 count = 0
+horizon = 60
+total_episodes = 6060
+
 while True:
 
-    if count % 150 == 0:
+    if count % horizon == 0:
         print("count: {}".format(count))
         print("initiating Carla...")
         socket.send_json({"type": "RESTART", "data": ""})
@@ -43,10 +46,10 @@ while True:
 
         cloudyness = 0
         precipitation = 0
-        precipitation_deposits = randrange(-10, 10)
+        precipitation_deposits = 0
         wind_intensity = 0
         sun_azimuth_angle = 0
-        sun_altitude_angle = 0
+        sun_altitude_angle = randrange(-1, 0)
 
         message = {"type":"ACTION", "data":(cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle)}
         socket.send_json({"type":"ACTION", "data":(cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle)})
@@ -65,7 +68,7 @@ while True:
     count += 1
     # print("current count: " + str(count))
 
-    if count == 4500:
+    if count == total_episodes:
         break
 
 print("Total episodes: ".format(count))
