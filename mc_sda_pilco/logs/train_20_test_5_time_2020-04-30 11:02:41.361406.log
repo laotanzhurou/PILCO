@@ -1,0 +1,72 @@
+### Training Set Count 1 ####
+initialisation complete.
+
+### Training Set Count 10 ####
+Size of model: 1576
+Likelihood after optimisation: [            inf             inf 1.04226233e+270             inf]
+time taken for optimisation: 2.5176591873168945 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.1302939629659449, 0.6941839791092766, 0.43202113341891696, 0.26694084332973145]
+Time taken for test: 1.2635083198547363 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.1259710774642719, 0.4793693983875869, 0.6429834589841765, 0.3927368519020413]
+Time taken for test: 0.4518253803253174 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.16699971318943585, 0.3953330884460249, 0.7170953781252634, 0.3660353896662227]
+Time taken for test: 0.4515523910522461 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.20093383120015912, 0.5065452183764394, 0.8007348254962869, 0.3864227322532514]
+Time taken for test: 0.44838905334472656 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.1753831932634541, 0.44366373698211586, 0.5959371391618955, 0.339589544168544]
+Time taken for test: 0.45026564598083496 seconds
+
+Overall average error percentage: 
+[0.15991635561665316, 0.5038190842602888, 0.6377543870373077, 0.35034507226395817]
+Test completes. 
+
+### Training Set Count 20 ####
+Size of model: 2976
+Likelihood after optimisation: [inf inf inf inf]
+time taken for optimisation: 17.643810987472534 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.11763151855302856, 0.703880527809359, 0.35155611097136436, 0.21985254022602654]
+Time taken for test: 1.62613844871521 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.16026105582389394, 0.4094448554526525, 0.6961804673211354, 0.3844728516613482]
+Time taken for test: 1.6004009246826172 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.17292431574585576, 0.3338572366882413, 0.6968943239464032, 0.3324703015628823]
+Time taken for test: 1.6134426593780518 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.15893927846131434, 0.3869832605556034, 0.7600991320811205, 0.34972773176099436]
+Time taken for test: 1.6178996562957764 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.13657018384277733, 0.39811458742779254, 0.5546020598263733, 0.2985197529760828]
+Time taken for test: 1.6217525005340576 seconds
+
+Overall average error percentage: 
+[0.14926527048537397, 0.4464560935867297, 0.6118664188292794, 0.31700863563746695]
+Test completes. 
+
+Exiting...

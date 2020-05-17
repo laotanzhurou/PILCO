@@ -102,8 +102,8 @@ def train_offline(args, file_path="data/training_set"):
 	if args.files is not None:
 		file_path = args.files
 
-	state_file = open(file_path + "/state_15k.txt", "r").readlines()
-	action_file = open(file_path + "/action_15k.txt", "r").readlines()
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
 
 	# initialisation
 	training_sets = int(args.trainings) if args.trainings is not None else 5
@@ -111,7 +111,7 @@ def train_offline(args, file_path="data/training_set"):
 	batch_size = int(args.batch) if args.batch is not None else 1
 	dump = bool(args.dump) if args.dump is not None else False
 	count = 1
-	T = 149
+	horizon = 35
 
 	# logging
 	log_file_name = "logs/" + "train_" + str(training_sets) + "_test_" + str(test_sets) + "_time_" + str(datetime.now()) + ".log"
@@ -123,6 +123,9 @@ def train_offline(args, file_path="data/training_set"):
 	test_sets_time = []
 
 	# init
+	# skip the first batch
+	_, __ = next_batch(state_file, action_file)
+
 	print("### Training Set Count {} ####".format(count))
 	state_actions, diffs = next_batch(state_file, action_file)
 	pilco = pilco_gp(state_actions, diffs)
@@ -134,8 +137,8 @@ def train_offline(args, file_path="data/training_set"):
 
 		# obtain data from new batch
 		new_state_actions, new_diffs = next_batch(state_file, action_file)
-		new_state_actions = new_state_actions[:T, :]
-		new_diffs = new_diffs[:T, :]
+		new_state_actions = new_state_actions[:horizon, :]
+		new_diffs = new_diffs[:horizon, :]
 
 		# add to existing data points
 		state_actions = np.vstack((state_actions, new_state_actions))
@@ -158,7 +161,7 @@ def train_offline(args, file_path="data/training_set"):
 				dump_pilco_to_files(pilco, count, model_size)
 
 			# measure prediction accuracy against test set
-			test_time = run_test(count, test_sets, 110, pilco)
+			test_time = run_test(count, test_sets, horizon, pilco)
 
 			# update time
 			set_index.append(count)
@@ -187,34 +190,36 @@ def train_offline(args, file_path="data/training_set"):
 
 def run_testset(args, file_path="data/training_set"):
 	# init
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
+
+	horizon = 35
+
+	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_5382_posY_accY_sunAlt'
+	trained_size = int(model_name.split("_")[1])
 	test_sets = int(args.tests) if args.tests is not None else 2
-	trained_size = 48
-	trained_model_size = 17256
-
-	horizon = 110
-	T = 149
-
-	state_file = open(file_path + "/state_15k.txt", "r").readlines()
-	action_file = open(file_path + "/action_15k.txt", "r").readlines()
 
 	# load serialised PILCO parameters
-	model_dump = load_pilco_from_files(trained_size, trained_model_size)
+	model_dump = load_pilco_from_files(model_name)
 	print("pre-trained PILCO model loaded...")
+
+	# skip the first batch
+	_, __ = next_batch(state_file, action_file)
 
 	# load data points from traing sets
 	X, Y = next_batch(state_file, action_file)
 	trained_size -= 1
 	while trained_size > 0:
 		x, y = next_batch(state_file, action_file)
-		X = np.vstack((X, x[:T, :]))
-		Y = np.vstack((Y, y[:T, :]))
+		X = np.vstack((X, x[:horizon, :]))
+		Y = np.vstack((Y, y[:horizon, :]))
 		trained_size -= 1
 
 	# re-create PILCO
 	pilco = pilco_gp.from_dump(model_dump, X, Y)
 
 	# run tests
-	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True)
+	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True, verbose=True)
 
 	print("Exiting...")
 
@@ -246,7 +251,7 @@ if __name__ == '__main__':
 		parser.add_argument("--batch", "-b", help="number of batches to execute")
 		parser.add_argument("--dump", "-d", help="dumps pilco model after each batch of training is done")
 		parser.add_argument("--tests", "-t", help="number of batches to execute")
-		parser.add_argument("--load_pilco_size", "-l", help="number of batches to execute")
+		parser.add_argument("--load_pilco_model", "-l", help="name of model dump to load")
 		args = parser.parse_args()
 		main(args)
 

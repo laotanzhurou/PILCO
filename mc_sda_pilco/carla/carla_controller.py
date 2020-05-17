@@ -161,9 +161,11 @@ def state_from_world(world, vehicle, ped):
     v_location = vehicle.get_location()
     v_acceleration = vehicle.get_acceleration()
     v_velocity = vehicle.get_velocity()
+    # state["vehicle"] = [v_location.x, v_location.y, v_location.z,
+    #                     v_velocity.x, v_velocity.y, v_velocity.z,
+    #                     v_acceleration.x, v_acceleration.y, v_acceleration.z]
     state["vehicle"] = [v_location.x, v_location.y, v_location.z,
-                        v_velocity.x, v_velocity.y, v_velocity.z,
-                        v_acceleration.x, v_acceleration.y, v_acceleration.z]
+                        v_velocity.x, v_velocity.y, v_velocity.z]
 
     # Populate pedestrian state
     p_location = ped.get_location()

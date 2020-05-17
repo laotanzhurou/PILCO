@@ -17,13 +17,13 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5555")
 
 #  Data files
-fa = open("../data/training_set/action.txt", "w+")
-fs = open("../data/training_set/state.txt", "w+")
+fa = open("../data/test_set/action.txt", "w+")
+fs = open("../data/test_set/state.txt", "w+")
 
 # hyper parameters
 count = 0
-horizon = 60
-total_episodes = 6060
+horizon = 80
+total_episodes = 800
 
 while True:
 
@@ -49,7 +49,7 @@ while True:
         precipitation_deposits = 0
         wind_intensity = 0
         sun_azimuth_angle = 0
-        sun_altitude_angle = randrange(-1, 0)
+        sun_altitude_angle = randrange(-2, 2)
 
         message = {"type":"ACTION", "data":(cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle)}
         socket.send_json({"type":"ACTION", "data":(cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle)})
@@ -69,6 +69,7 @@ while True:
     # print("current count: " + str(count))
 
     if count == total_episodes:
+        print("count: {}".format(count))
         break
 
 print("Total episodes: ".format(count))

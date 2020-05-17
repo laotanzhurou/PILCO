@@ -1,0 +1,174 @@
+### Training Set Count 1 ####
+initialisation complete.
+
+### Training Set Count 10 ####
+Size of model: 1182
+Likelihood after optimisation: [inf inf inf]
+time taken for optimisation: 1.5997378826141357 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.12366146197839754, 0.751312425708403, 0.2934781429342775]
+Time taken for test: 0.9483208656311035 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.1730972292180904, 0.4246704270039641, 0.3717307364612828]
+Time taken for test: 0.3423423767089844 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.10553404652552952, 0.4066192202143717, 0.3852317741764198]
+Time taken for test: 0.35057640075683594 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.201740384887936, 0.5400205092151072, 0.39739961860192297]
+Time taken for test: 0.3664431571960449 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.1685321928708737, 0.521586262098749, 0.3084014064757678]
+Time taken for test: 0.3784639835357666 seconds
+
+Overall average error percentage: 
+[0.15451306309616544, 0.5288417688481192, 0.35124833572993414]
+Test completes. 
+
+### Training Set Count 20 ####
+Size of model: 2232
+Likelihood after optimisation: [inf inf inf]
+time taken for optimisation: 9.323566198348999 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.10809717388699887, 0.6755269232034639, 0.18833605543524276]
+Time taken for test: 1.2094337940216064 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.15181397763959442, 0.32033743580893004, 0.3653719927198446]
+Time taken for test: 1.2156827449798584 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.12766275535290916, 0.3215870762638827, 0.3567837991741574]
+Time taken for test: 1.2122409343719482 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.1283927350838795, 0.4728744728539504, 0.3551071388232993]
+Time taken for test: 1.2135851383209229 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.17824105683463318, 0.3262908561081287, 0.2996347583814481]
+Time taken for test: 1.2157764434814453 seconds
+
+Overall average error percentage: 
+[0.138841539759603, 0.4233233528476712, 0.3130467489067984]
+Test completes. 
+
+### Training Set Count 30 ####
+Size of model: 3282
+Likelihood after optimisation: [inf inf inf]
+time taken for optimisation: 27.316499948501587 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.09216287204628928, 0.6938016941674486, 0.18618857050199453]
+Time taken for test: 3.4986276626586914 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.12322316767829697, 0.3121534769550532, 0.35599682161792706]
+Time taken for test: 3.4889988899230957 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.12070578734627807, 0.24923803486965126, 0.33834036993696787]
+Time taken for test: 3.4900474548339844 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.12722950979964154, 0.4296114820751971, 0.36839275276544026]
+Time taken for test: 3.4894211292266846 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.11515341356982428, 0.42975053953199793, 0.2875614346678059]
+Time taken for test: 3.4929544925689697 seconds
+
+Overall average error percentage: 
+[0.11569495008806603, 0.4229110455198697, 0.30729598989802714]
+Test completes. 
+
+### Training Set Count 40 ####
+Size of model: 4332
+Likelihood after optimisation: [inf inf inf]
+time taken for optimisation: 63.25124526023865 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.11960553018454725, 0.6759970068186522, 0.1719216735313322]
+Time taken for test: 7.838436841964722 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.09826381134998888, 0.2633959948513695, 0.3383076700565608]
+Time taken for test: 7.846210241317749 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.11088449950908089, 0.28973803004856413, 0.33365425098165646]
+Time taken for test: 7.846295595169067 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.09671424745631817, 0.5331895379996355, 0.35856814551271404]
+Time taken for test: 7.855876922607422 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.13268827714232584, 0.3343362298244965, 0.28522071122067233]
+Time taken for test: 7.8625218868255615 seconds
+
+Overall average error percentage: 
+[0.11163127312845222, 0.4193313599085436, 0.2975344902605872]
+Test completes. 
+
+### Training Set Count 50 ####
+Size of model: 5382
+Likelihood after optimisation: [inf inf inf]
+time taken for optimisation: 113.9151566028595 seconds
+
+###Testing set: 1
+test time steps: 35
+Batch average errors percentage: [0.11341604339868099, 0.6965753572819688, 0.1955664313600697]
+Time taken for test: 13.924547672271729 seconds
+
+###Testing set: 2
+test time steps: 35
+Batch average errors percentage: [0.07700393282770199, 0.19940773504171933, 0.35590203294005895]
+Time taken for test: 13.930333852767944 seconds
+
+###Testing set: 3
+test time steps: 35
+Batch average errors percentage: [0.08454901861877533, 0.2366472042856644, 0.3391795173484778]
+Time taken for test: 13.953582286834717 seconds
+
+###Testing set: 4
+test time steps: 35
+Batch average errors percentage: [0.09373743075073354, 0.534844099892886, 0.35429157007225626]
+Time taken for test: 13.936259508132935 seconds
+
+###Testing set: 5
+test time steps: 35
+Batch average errors percentage: [0.08820522896923556, 0.29571831841167706, 0.3060717529449297]
+Time taken for test: 13.936150550842285 seconds
+
+Overall average error percentage: 
+[0.0913823309130255, 0.3926385429827831, 0.3102022609331585]
+Test completes. 
+
+Exiting...

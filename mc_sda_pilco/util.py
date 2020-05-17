@@ -9,26 +9,29 @@ from pathlib import Path
 import pickle
 
 
-def load_pilco_from_files(training_sets, model_size, file_path="data/models/"):
-	path = file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump'
+def load_pilco_from_files(name, file_path="data/models/"):
+	path = file_path + name + '.dump'
 	if Path(path).exists():
 		with open(path, 'rb') as file:
 			return pickle.load(file)
 
 
-def dump_pilco_to_files(pilco, training_sets, model_size, file_path="data/models/"):
+def dump_pilco_to_files(pilco, training_sets, model_size, file_path="output/"):
 	with open(file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump', 'wb+') as file:
 		pickle.dump(pilco.snapshot(training_sets), file)
 
 
-def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True):
+def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True, verbose=False):
 
-	state_file = open(file_path + "/state_4.5k.txt", "r").readlines()
-	action_file = open(file_path + "/action_4.5k.txt", "r").readlines()
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
 	all_errors = None
 	dimensions = 0
 
 	total_runtime = 0
+
+	# skip the first test case
+	_, __ = next_batch(state_file, action_file)
 
 	for t in range(test_sets_size):
 		print("\n###Testing set: " + str(t + 1))
@@ -44,7 +47,12 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 		print("test time steps: " + str(horizon))
 
 		for i in range(horizon):
+			sample_start = time()
 			predicted_diffs = pilco.sample(np.stack([new_state_actions[i]]))
+			sample_end = time()
+			if verbose:
+				print("Time taken for sample in episode {}: {} seconds".format(i, sample_end - sample_start))
+
 			actual_diff = new_diffs[i]
 
 			predict_error = abs((actual_diff - predicted_diffs) / predicted_diffs)
@@ -77,7 +85,7 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 
 	if display:
 		fig, axs = plt.subplots(average_errors.shape[1])
-		fig.suptitle("Average Prediction Error % Test set {} Training set {}".format(test_sets_size, training_set_size))
+		fig.suptitle("Error % Test set {} Training set {} Pos_Y, Vel_Y, Acc_Y, Sun_Alti".format(test_sets_size, training_set_size))
 
 		for i in range(average_errors.shape[1]):
 			axs[i].plot(np.arange(0, average_errors.shape[0]), average_errors[:, i])
@@ -114,16 +122,16 @@ def next_batch(state_file, action_file):
 			break
 
 		# Loop logic: add state and action to list
-		action = parse_action(action_file.pop(0), prev_raw_state)
-		new_state, _raw = parse_state(state_file.pop(0))
+		action, _raw_action = parse_action(action_file.pop(0), prev_raw_state)
+		new_state, _raw_state = parse_state(state_file.pop(0))
 
-		# skip the first a few frames where vehicle is not moving
-		if _raw['vehicle'][1] <= 118:
+		# skip frames of starting as well as after vehicle stopped
+		if _raw_state['vehicle'][2] < 95:
 			state_actions.append(np.hstack((state, action)))
 			diffs.append(new_state - state)
 
 		state = new_state
-		prev_raw_state = _raw
+		prev_raw_state = _raw_state
 
 	return np.stack(state_actions), np.stack(diffs)
 
@@ -142,10 +150,11 @@ def parse_state(raw_state):
 	# state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/180 + 0.5]))
 
 	# only pos_y, velocity_y, rain possibility
-	pos_y = (-v[1]+120) / 40
-	vel_y = -v[4] / 40
-	rain_possi = w[2]/100
-	state = np.hstack(([], [pos_y, vel_y, rain_possi]))
+	pos_y = (-v[1]+100) / 20  # range 80 ~ 100
+	vel_y = (-v[4]+10)/ 15  # range -10 ~ 5, reversed direction
+	acc_y = (-v[7]+20) / 30  # range -10 ~ 20, reversed direction
+	sun_altitude = (w[5]+15)/60  # range -15 ~ 45
+	state = np.hstack(([], [pos_y, vel_y, acc_y, sun_altitude]))
 
 	return state, data
 
@@ -177,12 +186,15 @@ def parse_action(raw_action, raw_state):
 	#
 	# action = np.hstack(([], [a[0] / 100, a[1] / 100, a[2] / 100, a[3] / 100, a[4] / 360, a[5] / 180]))
 
-	prev_state_val = raw_state['weather'][2]
-	a[2] = max(min(a[2], 100 - prev_state_val), 0 - prev_state_val)
+	# precipitation deposit
+	# prev_state_val = raw_state['weather'][2]
+	# a[2] = max(min(a[2], 100 - prev_state_val), 0 - prev_state_val)
+	# action = np.hstack(([], [a[2] / 100]))
 
-	action = np.hstack(([], [a[2] / 100]))
+	# sun altitude
+	action = np.hstack(([], [a[5] / 60]))
 
-	return action
+	return action, a
 
 
 class Logger(object):
