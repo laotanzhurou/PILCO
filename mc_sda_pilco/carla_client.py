@@ -3,20 +3,7 @@ from enum import Enum
 import json
 import numpy as np
 
-
-def parse_state(data):
-	state = np.hstack(([], data['vehicle']))
-	state = np.hstack((state, data['peds']))
-	state = np.hstack((state, data['weather']))
-	return state
-
-
-def parse_action(raw_action):
-	action_json = json.loads(raw_action)
-	data = action_json['data']
-	action = np.hstack(([], data))
-	return action
-
+from .util import parse_state, parse_action
 
 class CarlaClient:
 
@@ -31,13 +18,17 @@ class CarlaClient:
 		self.socket.connect("tcp://%s:%d" % (self.host, self.port))
 		print("connected to Carla...")
 
-	def reset_carla(self, init_params=()):
-		# TODO: to define init_params types
+	def reset_carla(self, episodes_to_skip=0):
 		message = {"type": "RESTART", "data": ""}
 		# send
 		self.socket.send_json(message)
 		# wait for reply
 		response = self.socket.recv_json()
+		# skip the initial episodes after reset
+		for i in range(episodes_to_skip):
+			message = {"type":"ACTION", "data":(0, 0, 0, 0, 0, 0)}
+			self.socket.send_json(message)
+			response = self.socket.recv_json()
 
 		state = parse_state(response["data"])
 		return state
@@ -48,11 +39,9 @@ class CarlaClient:
 		self.socket.send_json(message)
 		# wait for reply
 		response = self.socket.recv_json()
-
 		# parse
-		state = parse_state(response["data"])
+		state = parse_state(response)
 		return state
-
 
 class CarlaMessage(Enum):
 	# request

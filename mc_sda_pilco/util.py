@@ -151,7 +151,7 @@ def parse_state(raw_state):
 
 	# only pos_y, velocity_y, rain possibility
 	pos_y = (-v[1]+100) / 20  # range 80 ~ 100
-	vel_y = (-v[4]+10)/ 15  # range -10 ~ 5, reversed direction
+	vel_y = -v[4]/ 10  # range -10 ~ 0, reversed direction
 	acc_y = (-v[7]+20) / 30  # range -10 ~ 20, reversed direction
 	sun_altitude = (w[5]+15)/60  # range -15 ~ 45
 	state = np.hstack(([], [pos_y, vel_y, acc_y, sun_altitude]))
@@ -195,6 +195,11 @@ def parse_action(raw_action, raw_state):
 	action = np.hstack(([], [a[5] / 60]))
 
 	return action, a
+
+
+def construct_action(action):
+	out = (0, 0, 0, 0, 0, action[0])
+	return out
 
 
 class Logger(object):

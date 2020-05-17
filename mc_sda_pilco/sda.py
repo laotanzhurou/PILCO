@@ -6,16 +6,13 @@ from datetime import datetime
 import sys
 import argparse
 from random import randrange
-
-from carla_client import CarlaClient
-from carla_env import CarlaEnv
-from environment import SDAEnv
-
-from pilco_gp import PILCOGaussianProcess as pilco_gp
-from util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_files, Logger
-
 import matplotlib.pyplot as plt
 
+from .carla_client import CarlaClient
+from .environment import SDAEnv
+from .pilco_gp import PILCOGaussianProcess as pilco_gp
+from .util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_files, parse_state, construct_action, Logger
+from .mct import MCTSNode, NodeType
 
 def rollout(env: SDAEnv, horizon, verbose=False):
 	# reset environment
@@ -44,58 +41,74 @@ def rollout(env: SDAEnv, horizon, verbose=False):
 	return np.stack(state_actions), np.stack(diffs)
 
 
-def sample_action(env: SDAEnv):
-	cloudyness = randrange(-5, 5)
-	precipitation = randrange(-5, 5)
-	precipitation_deposits = randrange(-5, 5)
-	wind_intensity = randrange(-5, 5)
-	sun_azimuth_angle = randrange(-4, 4)
-	sun_altitude_angle = randrange(-15, 15)
-	return cloudyness, precipitation, precipitation_deposits, wind_intensity, sun_azimuth_angle, sun_altitude_angle
+def train(verbose=False, file_path="data/training_set"):
+	# hyper parameters
+	episodes = 35
+	planning_horizon = 30
+	rollouts = 50
 
+	# data files
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
 
-def train(verbose=False):
-	with tf.Session() as session:
-		# hyper parameters
-		action_dimension = 5
-		n_pedestrian = 1
-		state_dimension = n_pedestrian * 2 + 2 + 1 + action_dimension
-		carla_episode_time = 1000
-		rollout_horizon = 150
-		iterations = 10
-		T = 20
+	# load pre-trained PILCO model
+	training_horizon = 35
+	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_7176_posY_accY_sunAlt'
+	trained_size = int(model_name.split("_")[1])
 
-		# carla connection
-		carla_host = "localhost"
-		carla_port = 5555
+	# load serialised PILCO parameters
+	model_dump = load_pilco_from_files(model_name)
+	print("pre-trained PILCO model loaded...")
 
-		# setup
-		carla_client = CarlaClient(carla_host, carla_port)
-		carla_client.connect()
-		env = CarlaEnv(carla_client, action_dimension, state_dimension, carla_episode_time)
+	# load data points from traing sets
+	_, __ = next_batch(state_file, action_file)
+	X, Y = next_batch(state_file, action_file)
+	trained_size -= 1
+	while trained_size > 0:
+		x, y = next_batch(state_file, action_file)
+		X = np.vstack((X, x[:training_horizon, :]))
+		Y = np.vstack((Y, y[:training_horizon, :]))
+		trained_size -= 1
 
-		# train model from random rolling out
-		print("Initiate batch...")
-		state_actions, diffs = rollout(env, rollout_horizon, verbose)
-		pilco = pilco_gp(state_actions, diffs)
-		pilco.init()
-		pilco.optimise(restarts=1)
+	# re-create PILCO
+	pilco = pilco_gp.from_dump(model_dump, X, Y)
+	print("PILCO model loading complete!")
 
-		for _ in range(iterations):
-			print("Batch {} training start...".format(_ + 1))
+	# connect to Carla
+	carla_host = "localhost"
+	carla_port = 5555
+	carla_client = CarlaClient(carla_host, carla_port)
+	print("connected to Carla...")
 
-			new_state_actions, new_diffs = rollout(env, rollout_horizon, verbose)
+	# init environment
+	raw_state = carla_client.reset_carla()
+	state = parse_state(raw_state)
 
-			state_actions = np.vstack((state_actions, new_state_actions[:T, :]))
-			diffs = np.vstack((diffs, new_diffs[:T, :]))
+	# planning
+	env = SDAEnv(pilco)
+	for i in range(episodes):
+		# termination check
+		if env.is_final_state(state):
+			break
 
-			pilco.set_XY(state_actions, diffs)
-			pilco.optimise(restarts=1)
+		# run MCTS
+		mct = MCTSNode(NodeType.DecisionNode)
+		for k in range(rollouts):
+			mct.sample(planning_horizon, env, state=state)
 
-		# optimise policy
-		# TODO:
+		# select the best action
+		action = mct.best_action()
+		print("episode:{}, state: {}, action: {}".format(i+1, state, action))
 
-		print("exiting sda...")
+		# construct message
+		action_message = construct_action(action)
+		state = carla_client.next_episode(action_message)
+		print("next state: {}, reward: {}".format(state, env.reward(state)))
+
+	last_reward = env.reward(state)
+	print("final reward: {}".format(last_reward))
+
+	print("planning completed, exiting...")
 
 
 def train_offline(args, file_path="data/training_set"):
