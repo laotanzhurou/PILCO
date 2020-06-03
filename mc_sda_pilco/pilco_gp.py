@@ -45,6 +45,18 @@ class PILCOGaussianProcess:
 			print("Time taken for sampling: " + str(time.time() - start) + " seconds")
 		return np.stack(y)
 
+	def sample_f(self, x, verbose=False):
+		start = time.time()
+		y = []
+		for m in self.mgpr.models:
+			mu, sigma = m.predict_f(x)
+			mu = mu.flatten()[0]
+			sigma = sigma.flatten()[0]
+			y.append(np.random.normal(mu, sigma, 1))
+		if verbose:
+			print("Time taken for sampling: " + str(time.time() - start) + " seconds")
+		return np.array(y).flatten()
+
 	def samples(self, X):
 		return np.array([self.sample( x.reshape(1, len(x)) ) for x in X])
 

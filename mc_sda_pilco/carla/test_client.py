@@ -17,8 +17,8 @@ socket = context.socket(zmq.REQ)
 socket.connect("tcp://localhost:5555")
 
 #  Data files
-fa = open("../data/test_set/action.txt", "w+")
-fs = open("../data/test_set/state.txt", "w+")
+fa = open("../data/action.txt", "w+")
+fs = open("../data/state.txt", "w+")
 
 # hyper parameters
 count = 0

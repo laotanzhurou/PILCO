@@ -4,21 +4,30 @@ from datetime import datetime
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-
 from pathlib import Path
 import pickle
 
-
-def load_pilco_from_files(name, file_path="data/models/"):
-	path = file_path + name + '.dump'
-	if Path(path).exists():
-		with open(path, 'rb') as file:
-			return pickle.load(file)
+from environment import SDAEnv
 
 
-def dump_pilco_to_files(pilco, training_sets, model_size, file_path="output/"):
-	with open(file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump', 'wb+') as file:
-		pickle.dump(pilco.snapshot(training_sets), file)
+def mcts_test(pilco):
+	env = SDAEnv(pilco)
+	file_path = "data/test_set"
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
+
+	# load test data
+	_, __ = next_batch(state_file, action_file)
+	state_actions, diffs = next_batch(state_file, action_file)
+
+	k = 10
+	state = state_actions[k][:4]
+	for i in range(30):
+		action = state_actions[i+k][4]
+		# comparison
+		state = env.transition(state, action)
+		actual_state = state_actions[i+k+1][:4]
+		print("{},{}".format(state[0], actual_state[0]))
 
 
 def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True, verbose=False):
@@ -159,6 +168,14 @@ def parse_state(raw_state):
 	return state, data
 
 
+def raw_state(state):
+	raw = np.zeros(state.shape)
+	raw[0] = -(state[0] * 20 - 100)
+	raw[1] = -state[1] * 10
+	raw[2] = -(state[2] * 30 - 20)
+	raw[3] = state[3]*60-15
+	return raw
+
 def parse_action(raw_action, raw_state):
 	action_json = json.loads(raw_action)
 	a = action_json['data']
@@ -197,9 +214,26 @@ def parse_action(raw_action, raw_state):
 	return action, a
 
 
+def raw_action(action):
+	raw = np.zeros(action.shape)
+	raw[0] = action[0] * 60
+	return raw
+
 def construct_action(action):
-	out = (0, 0, 0, 0, 0, action[0])
+	out = (0, 0, 0, 0, 0, action * 60)
 	return out
+
+
+def load_pilco_from_files(name, file_path="data/models/"):
+	path = file_path + name + '.dump'
+	if Path(path).exists():
+		with open(path, 'rb') as file:
+			return pickle.load(file)
+
+
+def dump_pilco_to_files(pilco, training_sets, model_size, file_path="output/"):
+	with open(file_path + 'pilco_' + str(training_sets) + "_" + str(model_size) + '.dump', 'wb+') as file:
+		pickle.dump(pilco.snapshot(training_sets), file)
 
 
 class Logger(object):

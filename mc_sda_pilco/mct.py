@@ -1,5 +1,6 @@
 import random
 import math
+from time import time
 from enum import Enum
 from mc_sda_pilco import environment
 
@@ -23,20 +24,31 @@ class MCTSNode:
 		self.children = {}
 		self.node_type = node_type
 
-	def rollout(self, horizon, env: environment.SDAEnv):
+	def brake_heuristics(self, state, env:environment.SDAEnv):
+		"""
+		Estimate whether vehicle's velocity could reduce to 0 in given horizon, assume always braking
+		"""
+		alpha = 7 # average braking acceleration
+		safety_buffer = 1
+		v = state[1] * 10
+		dist = -(state[0] * 20 - 100) - 80
+		braking_dist = math.pow(v, 2) / alpha / 2 * safety_buffer
+		return env.max_reward() if braking_dist > dist else env.min_reward()
+
+	def rollout(self, init_state, horizon, env: environment.SDAEnv):
 		"""
 		Use random policy for rollout
 		"""
 		r = 0.0
 		k = 0
 		action_space = env.action_space()
-		state = self.state
+		state = init_state
 		# conduct one path of rollout
 		while k < horizon and not env.is_final_state(state):
 			# sample a random action
-			action = action_space[random.randint(0, len(action_space))]
+			action = action_space[random.randint(0, len(action_space)-1)]
 			# one-step transition
-			state = env.transition(action, state)
+			state = env.transition(state, action)
 			step_r = env.reward(state)
 			# update reward and horizon
 			r += self.discount_factor * step_r
@@ -63,13 +75,13 @@ class MCTSNode:
 		undiscovered = []
 		selected_action = None
 		max_score = 0.0
-		# find all undiscovered chance nodes
+		# find all undiscovered chance nodes, i.e. actions
 		for action in env.action_space():
 			if action not in self.children:
 				undiscovered.append(action)
 		# randomly select undiscovered action if there's any
 		if len(undiscovered) > 0:
-			selected_action = undiscovered[random.randint(0, len(undiscovered))]
+			selected_action = undiscovered[random.randint(0, len(undiscovered)-1)]
 		# otherwise, select child of highest UCB score
 		else:
 			for action in self.children:
@@ -93,7 +105,8 @@ class MCTSNode:
 		if self.node_type == NodeType.DecisionNode:
 			# perform rollout if decision node is never visited
 			if self.visits == 0:
-				r = self.rollout(horizon, env)
+				# r = self.rollout(state, horizon, env)
+				r = self.brake_heuristics(state, env)
 			# otherwise, select action and recursively sample
 			else:
 				new_action = self.action_selection(horizon, env)

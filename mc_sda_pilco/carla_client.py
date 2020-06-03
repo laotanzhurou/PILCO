@@ -3,7 +3,7 @@ from enum import Enum
 import json
 import numpy as np
 
-from .util import parse_state, parse_action
+from util import parse_state, parse_action
 
 class CarlaClient:
 
@@ -16,7 +16,6 @@ class CarlaClient:
 	def connect(self):
 		self.socket = self.context.socket(zmq.REQ)
 		self.socket.connect("tcp://%s:%d" % (self.host, self.port))
-		print("connected to Carla...")
 
 	def reset_carla(self, episodes_to_skip=0):
 		message = {"type": "RESTART", "data": ""}
@@ -30,7 +29,7 @@ class CarlaClient:
 			self.socket.send_json(message)
 			response = self.socket.recv_json()
 
-		state = parse_state(response["data"])
+		state, _ = parse_state(json.dumps(response))
 		return state
 
 	def next_episode(self, action):
@@ -40,7 +39,7 @@ class CarlaClient:
 		# wait for reply
 		response = self.socket.recv_json()
 		# parse
-		state = parse_state(response)
+		state, _ = parse_state(json.dumps(response))
 		return state
 
 class CarlaMessage(Enum):

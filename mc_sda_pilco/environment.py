@@ -15,12 +15,12 @@ class SDAEnv:
 	def transition(self, state, action):
 		# sample a delta from GP models
 		state_action = np.hstack((state, action))
-		delta = self.pilco.sample(state_action)
+		delta = self.pilco.sample(np.stack([state_action]))
 
 		# calculate the new state
 		new_state = state + delta
 
-		return new_state
+		return tuple(new_state)
 
 	def reward(self, state):
 		"""
@@ -31,7 +31,7 @@ class SDAEnv:
 		distance = 1 - state[0]
 		velocity = state[1]
 		if distance > self.distance_threshold or velocity <= 0:
-			return 0.0
+			return -1.0
 		else:
 			return 10.0
 
@@ -39,7 +39,7 @@ class SDAEnv:
 		return 10.0
 
 	def min_reward(self):
-		return 0.0
+		return -1.0
 
 	def is_final_state(self, state):
 		"""
@@ -53,12 +53,12 @@ class SDAEnv:
 		"""
 		Action of increase/decrease sun altitude
 		"""
-		return [[2], [-2]]
+		return [(0.033), (-0.033)]
 
 	def within_proximity(self, a, b):
 		"""
 		Calculate Euclidean distance between a and b, if lower than proximity threshold
 		a could be considered same as b
 		"""
-		euclidean_dist = la.norm(a, b)
+		euclidean_dist = la.norm(np.array(a)-np.array(b))
 		return euclidean_dist > self.proximity_threshold
