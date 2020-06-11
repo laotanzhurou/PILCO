@@ -14,15 +14,10 @@ except IndexError:
     pass
 
 import zmq
-
 import carla
-
-import random
-
+from random import randint
 import image_converter
-
 import time
-
 import math
 
 # Controllers for the vehicle
@@ -161,11 +156,9 @@ def state_from_world(world, vehicle, ped):
     v_location = vehicle.get_location()
     v_acceleration = vehicle.get_acceleration()
     v_velocity = vehicle.get_velocity()
-    # state["vehicle"] = [v_location.x, v_location.y, v_location.z,
-    #                     v_velocity.x, v_velocity.y, v_velocity.z,
-    #                     v_acceleration.x, v_acceleration.y, v_acceleration.z]
     state["vehicle"] = [v_location.x, v_location.y, v_location.z,
-                        v_velocity.x, v_velocity.y, v_velocity.z]
+                        v_velocity.x, v_velocity.y, v_velocity.z,
+                        v_acceleration.x, v_acceleration.y, v_acceleration.z]
 
     # Populate pedestrian state
     p_location = ped.get_location()
@@ -354,7 +347,7 @@ def main():
                         precipitation_deposits=60,
                         wind_intensity=0,
                         sun_azimuth_angle=90,
-                        sun_altitude_angle=60
+                        sun_altitude_angle=45
                     )
                     world.set_weather(new_weather)
 
@@ -362,7 +355,7 @@ def main():
                         clock.tick()
                         sync_mode.tick(timeout=10.0)
 
-                    vehicle.set_velocity(carla.Vector3D(x=0, y=-20, z=0))
+                    vehicle.set_velocity(carla.Vector3D(x=0, y=-15, z=0))
 
                     clock.tick()
                     snapshot, image_rgb = sync_mode.tick(timeout=10.0)
@@ -387,11 +380,11 @@ def main():
                         precipitation_deposits=60,
                         wind_intensity=0,
                         sun_azimuth_angle=90,
-                        sun_altitude_angle=60
+                        sun_altitude_angle=randint(15, 75)
                     )
                     world.set_weather(new_weather)
 
-                    vehicle.set_velocity(carla.Vector3D(x=0, y=-20, z=0))
+                    vehicle.set_velocity(carla.Vector3D(x=0, y=-15, z=0))
 
                 # Otherwise, apply action then invoke vehicle controller
                 else:
