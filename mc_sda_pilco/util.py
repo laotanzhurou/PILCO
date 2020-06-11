@@ -7,27 +7,28 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import pickle
 
-from environment import SDAEnv
+
+from mc_sda_pilco import environment as env
 
 
-def mcts_test(pilco):
-	env = SDAEnv(pilco)
-	file_path = "data/test_set"
-	state_file = open(file_path + "/state.txt", "r").readlines()
-	action_file = open(file_path + "/action.txt", "r").readlines()
-
-	# load test data
-	_, __ = next_batch(state_file, action_file)
-	state_actions, diffs = next_batch(state_file, action_file)
-
-	k = 10
-	state = state_actions[k][:4]
-	for i in range(30):
-		action = state_actions[i+k][4]
-		# comparison
-		state = env.transition(state, action)
-		actual_state = state_actions[i+k+1][:4]
-		print("{},{}".format(state[0], actual_state[0]))
+# def mcts_test(pilco):
+# 	env = SDAEnv(pilco)
+# 	file_path = "data/test_set"
+# 	state_file = open(file_path + "/state.txt", "r").readlines()
+# 	action_file = open(file_path + "/action.txt", "r").readlines()
+#
+# 	# load test data
+# 	_, __ = next_batch(state_file, action_file)
+# 	state_actions, diffs = next_batch(state_file, action_file)
+#
+# 	k = 10
+# 	state = state_actions[k][:4]
+# 	for i in range(30):
+# 		action = state_actions[i+k][4]
+# 		# comparison
+# 		state = env.transition(state, action)
+# 		actual_state = state_actions[i+k+1][:4]
+# 		print("{},{}".format(state[0], actual_state[0]))
 
 
 def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True, verbose=False):
@@ -80,7 +81,6 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 		print("Time taken for test: {} seconds".format(str(end - start)))
 		total_runtime += end - start
 
-
 		if all_errors is None:
 			all_errors = errors
 		else:
@@ -108,6 +108,7 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 
 	return total_runtime / test_sets_size
 
+START_POSITION = 90
 
 def next_batch(state_file, action_file):
 	heading = "initiating"
@@ -135,7 +136,7 @@ def next_batch(state_file, action_file):
 		new_state, _raw_state = parse_state(state_file.pop(0))
 
 		# skip frames of starting as well as after vehicle stopped
-		if _raw_state['vehicle'][2] < 95:
+		if env.SDAEnv.collision_position_threshold < _raw_state['vehicle'][1] < env.SDAEnv.planning_start_position:
 			state_actions.append(np.hstack((state, action)))
 			diffs.append(new_state - state)
 
@@ -159,68 +160,78 @@ def parse_state(raw_state):
 	# state = np.hstack(([], [w[0]/100, w[1]/100, w[2]/100, w[3]/100, w[4]/360, w[5]/180 + 0.5]))
 
 	# only pos_y, velocity_y, rain possibility
-	pos_y = (-v[1]+100) / 20  # range 80 ~ 100
-	vel_y = -v[4]/ 10  # range -10 ~ 0, reversed direction
-	acc_y = (-v[7]+20) / 30  # range -10 ~ 20, reversed direction
-	sun_altitude = (w[5]+15)/60  # range -15 ~ 45
+	pos_y = raw_position_to_state(v[1])
+	vel_y = raw_velocity_to_state(v[4])
+	acc_y = raw_acc_to_state(v[7])
+	sun_altitude = raw_sun_alt_to_state(w[5])
 	state = np.hstack(([], [pos_y, vel_y, acc_y, sun_altitude]))
 
 	return state, data
 
 
+def raw_velocity_to_state(val):
+	# range -15 ~ 0, reversed direction
+	return -val / 15
+
+
+def state_velocity_to_raw(val):
+	return -val * 15
+
+
+def raw_position_to_state(val):
+	return (100-val) / 20  # range 80 ~ 100, reversed direction
+
+
+def state_position_to_raw(val):
+	return 100-(val * 20)
+
+
+def raw_acc_to_state(val):
+	return (20-val) / 30  # range -10 ~ 20, reversed direction
+
+
+def state_acc_to_raw(val):
+	return -(val * 30 - 20)
+
+
+def raw_sun_alt_to_state(val):
+	return (val+90)/180  # range -90 ~ 90
+
+
+def state_sun_alt_to_raw(val):
+	return val * 180 - 90
+
+
+def raw_sun_alt_to_action(val):
+	return val / 180
+
+
 def raw_state(state):
 	raw = np.zeros(state.shape)
-	raw[0] = -(state[0] * 20 - 100)
-	raw[1] = -state[1] * 10
-	raw[2] = -(state[2] * 30 - 20)
-	raw[3] = state[3]*60-15
+	raw[0] = state_position_to_raw(state[0])
+	raw[1] = state_velocity_to_raw(state[1])
+	raw[2] = state_acc_to_raw(state[2])
+	raw[3] = state_sun_alt_to_raw(state[3])
 	return raw
 
 def parse_action(raw_action, raw_state):
 	action_json = json.loads(raw_action)
 	a = action_json['data']
 
-	# test offsetting invalid actions to 0, e.g. sun altitude angle -5 when it's already 0
-	# for i in range(6):
-	# 	prev_state_val = raw_state['weather'][i]
-	# 	if i < 4:
-	# 		# guard for lower bound
-	# 		if prev_state_val + a[i] <= 0:
-	# 			a[i] = max(a[i], 0 - prev_state_val)
-	# 		# guard for upper bound
-	# 		if prev_state_val + a[i] >= 100:
-	# 			a[i] = min(a[i], 100 - prev_state_val)
-	# 	elif i == 4:
-	# 		if prev_state_val + a[i] <= 0:
-	# 			a[i] = max(a[i], 0 - prev_state_val)
-	# 		if prev_state_val + a[i] >= 360:
-	# 			a[i] = min(a[i], 360 - prev_state_val)
-	# 	elif i == 5:
-	# 		if prev_state_val + a[i] <= -90:
-	# 			a[i] = max(a[i], (-90) - prev_state_val)
-	# 		if prev_state_val + a[i] >= 90:
-	# 			a[i] = min(a[i], 90 - prev_state_val)
-	#
-	# action = np.hstack(([], [a[0] / 100, a[1] / 100, a[2] / 100, a[3] / 100, a[4] / 360, a[5] / 180]))
-
-	# precipitation deposit
-	# prev_state_val = raw_state['weather'][2]
-	# a[2] = max(min(a[2], 100 - prev_state_val), 0 - prev_state_val)
-	# action = np.hstack(([], [a[2] / 100]))
-
 	# sun altitude
-	action = np.hstack(([], [a[5] / 60]))
+	action = np.hstack(([], [raw_sun_alt_to_action(a[5])]))
 
 	return action, a
 
 
 def raw_action(action):
 	raw = np.zeros(action.shape)
-	raw[0] = action[0] * 60
+	raw[0] = action[0] * 180
 	return raw
 
+
 def construct_action(action):
-	out = (0, 0, 0, 0, 0, action * 60)
+	out = (0, 0, 0, 0, 0, action * 180)
 	return out
 
 

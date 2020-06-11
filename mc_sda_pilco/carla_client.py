@@ -38,6 +38,7 @@ class CarlaClient:
 		self.socket.send_json(message)
 		# wait for reply
 		response = self.socket.recv_json()
+		print("response: {}".format(response))
 		# parse
 		state, _ = parse_state(json.dumps(response))
 		return state

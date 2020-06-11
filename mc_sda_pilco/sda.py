@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from carla_client import CarlaClient
 from environment import SDAEnv
 from pilco_gp import PILCOGaussianProcess as pilco_gp
-from util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_files, parse_state, construct_action, mcts_test, Logger, raw_state, raw_action
+from util import load_pilco_from_files, run_test, next_batch, dump_pilco_to_files, parse_state, construct_action, Logger, raw_state, raw_action
 from mct import MCTSNode, NodeType
 
 
@@ -27,9 +27,8 @@ def train(verbose=False, file_path="data/training_set"):
 
 	# parameters
 	training_horizon = 35
-	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_5382_posY_accY_sunAlt'
+	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_6568'
 	trained_size = int(model_name.split("_")[1])
-	test_sets = int(args.tests) if args.tests is not None else 2
 
 	# re-create PILCO
 	pilco = load_pilco(args, file_path, trained_size, training_horizon, model_name)
@@ -45,7 +44,7 @@ def train(verbose=False, file_path="data/training_set"):
 	print("connected to Carla...")
 
 	# init environment
-	state = carla_client.reset_carla(episodes_to_skip=30)
+	state = carla_client.reset_carla(episodes_to_skip=15)
 
 	# planning
 	env = SDAEnv(pilco)
@@ -63,7 +62,7 @@ def train(verbose=False, file_path="data/training_set"):
 
 		# select the best action
 		action = mct.best_action()
-		print("episode:{}, state: {}, action: {}, score: {}".format(i+1, raw_state(state), action * 60, mct.children[action].mean))
+		print("episode:{}, state: {}, action: {}, score: {}".format(i+1, raw_state(state), action * 180, mct.children[action].mean))
 
 		# construct message
 		action_message = construct_action(action)
@@ -169,7 +168,7 @@ def train_offline(args, file_path="data/training_set"):
 
 def run_testset(args, file_path="data/training_set"):
 	# parameters
-	horizon = 35
+	horizon = 30
 	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_5382_posY_accY_sunAlt'
 	trained_size = int(model_name.split("_")[1])
 	test_sets = int(args.tests) if args.tests is not None else 2
@@ -178,7 +177,7 @@ def run_testset(args, file_path="data/training_set"):
 	pilco = load_pilco(args, file_path, trained_size, horizon, model_name)
 
 	# prediction test
-	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True, verbose=True)
+	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True, verbose=False)
 
 	# mcts test
 	# mcts_test(pilco)

@@ -1,8 +1,9 @@
 import random
 import math
-from time import time
 from enum import Enum
+
 from mc_sda_pilco import environment
+from mc_sda_pilco import util
 
 class NodeType (Enum):
 	DecisionNode = 1
@@ -16,7 +17,7 @@ class MCTSNode:
 	"""
 	# hyper parameters
 	exploration_constant = 2.0
-	discount_factor = 1.0
+	discount_factor = 0.95
 
 	def __init__(self, node_type: NodeType):
 		self.visits = 0
@@ -24,16 +25,31 @@ class MCTSNode:
 		self.children = {}
 		self.node_type = node_type
 
-	def brake_heuristics(self, state, env:environment.SDAEnv):
+	def sun_alt_heuristics(self, state, env:environment.SDAEnv):
 		"""
-		Estimate whether vehicle's velocity could reduce to 0 in given horizon, assume always braking
+		This heuristics assumes a constant velocity as in the current state and a default policy that always reduce
+		sun altitude by 2 in each step.
+		It predicts the value of sun altitude at the time of vehicle reaches pedestrian given above assumptions and
+		compare with a target sun altitude which we draw from experience.
+
+		prediction > target -> min reward
+		otherwise -> max reward
 		"""
-		alpha = 7 # average braking acceleration
-		safety_buffer = 1
-		v = state[1] * 10
-		dist = -(state[0] * 20 - 100) - 80
-		braking_dist = math.pow(v, 2) / alpha / 2 * safety_buffer
-		return env.max_reward() if braking_dist > dist else env.min_reward()
+		# parameters
+		target = 2
+
+		# current state
+		velocity = util.state_velocity_to_raw(state[1])
+		dist = util.state_position_to_raw(state[0]) - env.pedestrian_position
+		sun_altitude = util.state_sun_alt_to_raw(state[3])
+
+		# prediction
+		steps_til_reach = dist / velocity / env.time_per_step
+		prediction = sun_altitude - steps_til_reach * 2
+
+		# heuristics value
+		final_reward = env.min_reward() if prediction > target else env.max_reward()
+		return final_reward + steps_til_reach * env.step_penalty()
 
 	def rollout(self, init_state, horizon, env: environment.SDAEnv):
 		"""
@@ -97,16 +113,20 @@ class MCTSNode:
 		# reward obtained from this run of sampling, computed either through rollout or back-propagation
 		r = 0.0
 
-		# if horizon reached or state is final, return 0
-		if horizon == 0 or env.is_final_state(state):
+		# if horizon reached, return 0
+		if horizon == 0:
 			return r
+
+		# direct evaluation for final state
+		if env.is_final_state(state):
+			return env.reward(state)
 
 		# decision node
 		if self.node_type == NodeType.DecisionNode:
 			# perform rollout if decision node is never visited
 			if self.visits == 0:
 				# r = self.rollout(state, horizon, env)
-				r = self.brake_heuristics(state, env)
+				r = self.sun_alt_heuristics(state, env)
 			# otherwise, select action and recursively sample
 			else:
 				new_action = self.action_selection(horizon, env)
@@ -127,7 +147,7 @@ class MCTSNode:
 					new_state = explored_state
 					break
 			# step reward of next state
-			step_r = env.reward(new_state)
+			step_r = env.step_penalty()
 			# add to children set if not within proximity of any child
 			if new_state not in self.children:
 				self.children[new_state] = MCTSNode(NodeType.DecisionNode)
