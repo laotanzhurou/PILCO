@@ -37,18 +37,20 @@ class MCTSNode:
 		"""
 		# parameters
 		target = 2
+		threshold = 10
 
 		# current state
 		velocity = util.state_velocity_to_raw(state[1])
-		dist = util.state_position_to_raw(state[0]) - env.pedestrian_position
+		dist = env.pedestrian_position - util.state_position_to_raw(state[0])
 		sun_altitude = util.state_sun_alt_to_raw(state[3])
 
 		# prediction
 		steps_til_reach = dist / velocity / env.time_per_step
 		prediction = sun_altitude - steps_til_reach * 2
+		diff = prediction - target
 
 		# heuristics value
-		final_reward = env.min_reward() if prediction > target else env.max_reward()
+		final_reward = env.min_reward() if diff > threshold else env.max_reward()
 		return final_reward + steps_til_reach * env.step_penalty()
 
 	def rollout(self, init_state, horizon, env: environment.SDAEnv):

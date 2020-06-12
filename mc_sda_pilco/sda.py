@@ -23,7 +23,7 @@ def train(verbose=False, file_path="data/training_set"):
 	# hyper parameters
 	episodes = 30
 	planning_horizon = 10
-	rollouts = 30
+	rollouts = 100
 
 	# parameters
 	training_horizon = 35
@@ -44,7 +44,7 @@ def train(verbose=False, file_path="data/training_set"):
 	print("connected to Carla...")
 
 	# init environment
-	state = carla_client.reset_carla(episodes_to_skip=15)
+	state = carla_client.reset_carla(episodes_to_skip=5)
 
 	# planning
 	env = SDAEnv(pilco)
@@ -57,7 +57,9 @@ def train(verbose=False, file_path="data/training_set"):
 		mct = MCTSNode(NodeType.DecisionNode)
 		start = time.time()
 		for k in range(rollouts):
+			step_start = time.time()
 			mct.sample(planning_horizon, env, state=tuple(state))
+			print("{}th sample time: {} seconds".format(k, time.time() - step_start))
 		print("{} sample completed in {} seconds".format(rollouts, time.time()-start))
 
 		# select the best action
@@ -169,7 +171,7 @@ def train_offline(args, file_path="data/training_set"):
 def run_testset(args, file_path="data/training_set"):
 	# parameters
 	horizon = 30
-	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_5382_posY_accY_sunAlt'
+	model_name = args.load_pilco_model if args.load_pilco_model is not None else 'pilco_50_6568'
 	trained_size = int(model_name.split("_")[1])
 	test_sets = int(args.tests) if args.tests is not None else 2
 
@@ -177,7 +179,7 @@ def run_testset(args, file_path="data/training_set"):
 	pilco = load_pilco(args, file_path, trained_size, horizon, model_name)
 
 	# prediction test
-	run_test(trained_size, test_sets, horizon, pilco, file_path=file_path, display=True, verbose=False)
+	run_test(trained_size, test_sets, horizon, pilco, display=True, verbose=False)
 
 	# mcts test
 	# mcts_test(pilco)

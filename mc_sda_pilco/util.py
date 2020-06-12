@@ -9,29 +9,29 @@ import pickle
 
 
 from mc_sda_pilco import environment as env
+from mc_sda_pilco import pilco_gp
+
+def mcts_test(pilco):
+	sda_env = env.SDAEnv(pilco)
+	file_path = "data/test_set"
+	state_file = open(file_path + "/state.txt", "r").readlines()
+	action_file = open(file_path + "/action.txt", "r").readlines()
+
+	# load test data
+	_, __ = next_batch(state_file, action_file)
+	state_actions, diffs = next_batch(state_file, action_file)
+
+	k = 10
+	state = state_actions[k][:4]
+	for i in range(30):
+		action = state_actions[i+k][4]
+		# comparison
+		state = sda_env.transition(state, action)
+		actual_state = state_actions[i+k+1][:4]
+		print("{},{}".format(state[0], actual_state[0]))
 
 
-# def mcts_test(pilco):
-# 	env = SDAEnv(pilco)
-# 	file_path = "data/test_set"
-# 	state_file = open(file_path + "/state.txt", "r").readlines()
-# 	action_file = open(file_path + "/action.txt", "r").readlines()
-#
-# 	# load test data
-# 	_, __ = next_batch(state_file, action_file)
-# 	state_actions, diffs = next_batch(state_file, action_file)
-#
-# 	k = 10
-# 	state = state_actions[k][:4]
-# 	for i in range(30):
-# 		action = state_actions[i+k][4]
-# 		# comparison
-# 		state = env.transition(state, action)
-# 		actual_state = state_actions[i+k+1][:4]
-# 		print("{},{}".format(state[0], actual_state[0]))
-
-
-def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/test_set", display=True, verbose=False):
+def run_test(training_set_size, test_sets_size, horizon, pilco:pilco_gp.PILCOGaussianProcess, file_path="data/test_set", display=True, verbose=False):
 
 	state_file = open(file_path + "/state.txt", "r").readlines()
 	action_file = open(file_path + "/action.txt", "r").readlines()
@@ -40,7 +40,7 @@ def run_test(training_set_size, test_sets_size, horizon, pilco, file_path="data/
 
 	total_runtime = 0
 
-	# skip the first test case
+	# skip the first batch of data as it tends to be noisy due to CARLA initialisation
 	_, __ = next_batch(state_file, action_file)
 
 	for t in range(test_sets_size):
