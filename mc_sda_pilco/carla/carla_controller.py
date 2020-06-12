@@ -380,7 +380,9 @@ def main():
                         precipitation_deposits=60,
                         wind_intensity=0,
                         sun_azimuth_angle=90,
+                        # for planning mode, comment line immediately below that randomises sun altitude and uncomment `sun_altitude_angle = 45`
                         sun_altitude_angle=randint(15, 75)
+                        # sun_altitude_angle = 45
                     )
                     world.set_weather(new_weather)
 
