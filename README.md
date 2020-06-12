@@ -55,9 +55,7 @@ that could be used for offline model learning
 using training data
 
 4. `logs, figures and output` are folder where runtime information are dumped into. It's worth noting that model parameters learned during
-offline model learnnig (`-m 2`) are dumped into `output` folder. Also, under `logs` folder we have keep a few logs that are results
-of the Running Test Mode (`-m 1`) against with pre-trained model dump `pilco_50_6558`. Users looking to run tests could compare the runtime
-logs with these logs for a benchmark.
+offline model learnnig (`-m 2`) are dumped into `output` folder.
 
 
 ### Introduction
